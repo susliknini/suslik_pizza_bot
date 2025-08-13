@@ -8,21 +8,20 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 import asyncio
 
-# Конфигурация бота
-TOKEN = "7565993208:AAG6m3jckdvEbHLLtxFHXYUYarGGdjtA7Ms"  # Замените на реальный токен
-ADMIN_IDS = [5529756753]  # Ваш ID администратора
-BOT_USERNAME = SusIikPizzarobot"  # Имя вашего бота
+TOKEN = "7565993208:AAG6m3jckdvEbHLLtxFHXYUYarGGdjtA7Ms"  
+ADMIN_IDS = [5529756753]  
+BOT_USERNAME = SusIikPizzarobot"  
 VIP_PHRASE = "пицца - @SuslikPizza"
-CHANNEL_USERNAME = "@SuslikPizza"  # Юзернейм канала для подписки
-CHANNEL_ID = -1001234567890  # ID вашего канала (должен начинаться с -100)
+CHANNEL_USERNAME = "@SuslikPizza"  
+CHANNEL_ID = -1001234567890  
 
-# Глобальные переменные
+
 promo_text = None
 users_db = {}
 vip_users = set()
 orders_history = []
 
-# Стили оформления сообщений
+
 STYLES = {
     "header": "🍕 <b>{text}</b> 🍕",
     "warning": "⚠️ <i>{text}</i>",
@@ -35,7 +34,7 @@ STYLES = {
     "channel": "📢 {text}"
 }
 
-# Меню пицц
+
 PIZZA_TYPES = {
     "Маргарита": ["томатный соус", "моцарелла", "базилик"],
     "Пепперони": ["томатный соус", "моцарелла", "пепперони"],
@@ -45,7 +44,7 @@ PIZZA_TYPES = {
     "Веган": ["томатный соус", "тофу", "грибы", "оливки", "перец"]
 }
 
-# Процесс приготовления пиццы
+
 PIZZA_PROGRESS = [
     ("🧑‍🍳 Начали готовить вашу пиццу...", 0),
     ("🫓 Раскатываем тесто...", 15),
@@ -59,12 +58,12 @@ PIZZA_PROGRESS = [
     ("🛵 Передаем курьеру...", 100)
 ]
 
-# Инициализация бота
+
 bot = Bot(token=TOKEN, parse_mode="HTML")
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-# Состояния
+
 class OrderStates(StatesGroup):
     waiting_for_address = State()
     waiting_for_pizza_type = State()
@@ -74,7 +73,7 @@ class AdminStates(StatesGroup):
     waiting_for_promo = State()
     waiting_for_ad = State()
 
-# Клавиатуры
+
 def create_keyboard(buttons, row_width=2):
     keyboard = InlineKeyboardMarkup(row_width=row_width)
     keyboard.add(*buttons)
@@ -122,18 +121,18 @@ def get_channel_subscription_keyboard():
         InlineKeyboardButton("Я подписался ✅", callback_data="check_subscription")
     )
 
-# Форматирование сообщений
+
 def format_message(style, text, **kwargs):
     return STYLES[style].format(text=text, **kwargs)
 
-# Проверка VIP статуса
+
 def check_vip_status(user: types.User):
     try:
         return hasattr(user, 'bio') and user.bio and VIP_PHRASE.lower() in user.bio.lower()
     except:
         return False
 
-# Проверка подписки на канал
+
 async def check_channel_subscription(user_id: int):
     try:
         member = await bot.get_chat_member(CHANNEL_ID, user_id)
@@ -141,7 +140,7 @@ async def check_channel_subscription(user_id: int):
     except:
         return False
 
-# Регистрация пользователя
+
 async def update_user(user: types.User):
     user_id = user.id
     is_vip = check_vip_status(user)
@@ -166,13 +165,13 @@ async def update_user(user: types.User):
     
     return False
 
-# Обработчики команд
+
 @dp.message_handler(commands=['start', 'pizza'])
 async def handle_commands(message: types.Message):
     user = message.from_user
     chat_type = message.chat.type
     
-    # Проверка подписки на канал (только в личных сообщениях)
+   
     if chat_type == 'private':
         is_subscribed = await check_channel_subscription(user.id)
         if not is_subscribed:
@@ -230,7 +229,7 @@ async def check_subscription_callback(callback_query: types.CallbackQuery):
             reply_markup=get_channel_subscription_keyboard()
         )
 
-# Обработчики callback-запросов
+
 @dp.callback_query_handler(lambda c: c.data.startswith('pizza_'))
 async def handle_pizza_selection(callback_query: types.CallbackQuery, state: FSMContext):
     pizza_type = callback_query.data[6:]
@@ -256,7 +255,7 @@ async def handle_callbacks(callback_query: types.CallbackQuery, state: FSMContex
     await bot.answer_callback_query(callback_query.id)
     user_id = callback_query.from_user.id
     
-    # Проверка подписки для основных функций
+
     if callback_query.data not in ['back', 'about']:
         is_subscribed = await check_channel_subscription(user_id)
         if not is_subscribed:
@@ -290,7 +289,6 @@ async def handle_callbacks(callback_query: types.CallbackQuery, state: FSMContex
     elif callback_query.data == 'back':
         await back_to_main(callback_query)
 
-# Функции отображения меню
 async def show_menu(callback_query: types.CallbackQuery):
     menu_text = format_message("header", "Наше меню") + "\n\n"
     for name, ingredients in PIZZA_TYPES.items():
@@ -365,7 +363,7 @@ async def back_to_main(callback_query: types.CallbackQuery):
         reply_markup=get_main_menu(callback_query.from_user.id)
     )
 
-# Админ-функции
+
 async def start_broadcast(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.send_message(
         callback_query.from_user.id,
@@ -425,7 +423,7 @@ async def process_advertisement(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-# Обработка заказов
+
 async def process_group_order(message: types.Message, address: str):
     user = message.from_user
     user_id = user.id
@@ -499,7 +497,7 @@ async def process_private_order(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-# Вспомогательные функции
+
 async def send_pizza_progress(chat_id, user_name, address, pizza_type, is_vip=False):
     progress_message = await bot.send_message(
         chat_id,
@@ -541,5 +539,6 @@ async def complete_order(chat_id, message_id, user_name, address, count, pizza_t
     )
 
 if __name__ == '__main__':
-    print("Бот запущен!")
+    print("запустилас")
+
     executor.start_polling(dp, skip_updates=True)
