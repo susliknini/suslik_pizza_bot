@@ -1,4 +1,4 @@
-﻿import random
+import random
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputFile
@@ -6,21 +6,21 @@ from aiogram.utils import executor
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.bot.api import TelegramAPIServer
 import asyncio
 
-TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI/test" 
-ADMIN_IDS = [5000673123]  
-BOT_USERNAME = "SuslikPizzaBot"  
-VIP_PHRASE = "пицца - @SuslikPizza"
-CHANNEL_USERNAME = "@SuslikPizza"  
-CHANNEL_ID = -1001234567890  
+# Конфигурация бота
+BOT_TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI/test"
+ADMIN_IDS = [5000385710]  # Ваш ID администратора
+BOT_USERNAME = "SusIikPizzabot"  # Без @ если будет использоваться в ссылках
+VIP_PHRASE = "пицца - @SusIikPizzabot"
 
-promo_text = None
-users_db = {}
-vip_users = set()
-orders_history = []
+# Глобальные переменные
+promo_text = None  # Текст для подписи под заказами
+users_db = {}      # База данных пользователей
+vip_users = set()  # Множество VIP пользователей
+orders_history = [] # История заказов
 
+# Стили оформления сообщений
 STYLES = {
     "header": "🍕 <b>{text}</b> 🍕",
     "warning": "⚠️ <i>{text}</i>",
@@ -29,10 +29,10 @@ STYLES = {
     "admin": "👑 {text}",
     "delivery": "🚚 {text}",
     "pizza": "🍕 {text}",
-    "love": "❤️ {text}",
-    "channel": "📢 {text}"
+    "love": "❤️ {text}"
 }
 
+# Меню пицц
 PIZZA_TYPES = {
     "Маргарита": ["томатный соус", "моцарелла", "базилик"],
     "Пепперони": ["томатный соус", "моцарелла", "пепперони"],
@@ -42,6 +42,7 @@ PIZZA_TYPES = {
     "Веган": ["томатный соус", "тофу", "грибы", "оливки", "перец"]
 }
 
+# Процесс приготовления пиццы с анимацией
 PIZZA_PROGRESS = [
     ("🧑‍🍳 Начали готовить вашу пиццу...", 0),
     ("🫓 Раскатываем тесто...", 15),
@@ -55,10 +56,12 @@ PIZZA_PROGRESS = [
     ("🛵 Передаем курьеру...", 100)
 ]
 
-bot = Bot(token=TOKEN, parse_mode="HTML")
+# Инициализация бота
+bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
+# Состояния
 class OrderStates(StatesGroup):
     waiting_for_address = State()
     waiting_for_pizza_type = State()
@@ -68,6 +71,7 @@ class AdminStates(StatesGroup):
     waiting_for_promo = State()
     waiting_for_ad = State()
 
+# Клавиатуры
 def create_keyboard(buttons, row_width=2):
     keyboard = InlineKeyboardMarkup(row_width=row_width)
     keyboard.add(*buttons)
@@ -80,8 +84,10 @@ def get_main_menu(user_id: int):
         InlineKeyboardButton("👤 Профиль", callback_data="profile"),
         InlineKeyboardButton("ℹ️ О сервисе", callback_data="about")
     ]
+    
     if user_id in ADMIN_IDS:
         buttons.append(InlineKeyboardButton("👑 Админ-панель", callback_data="admin_panel"))
+    
     return create_keyboard(buttons)
 
 def get_pizza_menu():
@@ -106,29 +112,18 @@ def get_admin_panel():
 def get_back_button():
     return InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Назад", callback_data="back"))
 
-def get_channel_subscription_keyboard():
-    return InlineKeyboardMarkup().add(
-        InlineKeyboardButton("Подписаться на канал", url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
-    ).add(
-        InlineKeyboardButton("Я подписался ✅", callback_data="check_subscription")
-    )
-
+# Форматирование сообщений
 def format_message(style, text, **kwargs):
     return STYLES[style].format(text=text, **kwargs)
 
+# Проверка VIP статуса
 def check_vip_status(user: types.User):
     try:
         return hasattr(user, 'bio') and user.bio and VIP_PHRASE.lower() in user.bio.lower()
     except:
         return False
 
-async def check_channel_subscription(user_id: int):
-    try:
-        member = await bot.get_chat_member(CHANNEL_ID, user_id)
-        return member.status in ['member', 'administrator', 'creator']
-    except:
-        return False
-
+# Регистрация/обновление пользователя
 async def update_user(user: types.User):
     user_id = user.id
     is_vip = check_vip_status(user)
@@ -153,23 +148,16 @@ async def update_user(user: types.User):
     
     return False
 
+# Обработчики команд
 @dp.message_handler(commands=['start', 'pizza'])
 async def handle_commands(message: types.Message):
     user = message.from_user
     chat_type = message.chat.type
     
-    if chat_type == 'private':
-        is_subscribed = await check_channel_subscription(user.id)
-        if not is_subscribed:
-            await message.answer(
-                format_message("channel", "Для использования бота необходимо подписаться на наш канал!") + "\n\n" +
-                f"Канал: {CHANNEL_USERNAME}",
-                reply_markup=get_channel_subscription_keyboard()
-            )
-            return
-    
+    # Обновляем данные пользователя
     vip_updated = await update_user(user)
     
+    # Обработка команды /pizza в чате
     if message.text.startswith('/pizza') and chat_type != 'private':
         parts = message.text.split(maxsplit=1)
         if len(parts) > 1:
@@ -181,8 +169,9 @@ async def handle_commands(message: types.Message):
             )
         return
     
-    welcome_text = format_message("header", "Suslik Pizza - лучшая пицца в городе!") + "\n\n"
-    welcome_text += format_message("pizza", "Доставка с любовью!") + "\n\n"
+    # Приветственное сообщение
+    welcome_text = format_message("header", "Suslik Pizza Bot - лучшая пицца в городе!") + "\n\n"
+    welcome_text += format_message("pizza", "Доставляем с любовью и хрустящей корочкой!") + "\n\n"
     welcome_text += format_message("vip", f"Добавь в био '{VIP_PHRASE}' для VIP статуса")
     
     if vip_updated:
@@ -203,19 +192,19 @@ async def handle_commands(message: types.Message):
     if chat_type == 'private':
         await message.delete()
 
-@dp.callback_query_handler(lambda c: c.data == 'check_subscription')
-async def check_subscription_callback(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
+@dp.message_handler(commands=['выход'])
+async def exit_bot(message: types.Message):
+    if message.chat.type == 'private':
+        await message.answer(format_message("warning", "Эта команда работает только в чатах!"))
+        return
     
-    is_subscribed = await check_channel_subscription(callback_query.from_user.id)
-    if is_subscribed:
-        await handle_commands(callback_query.message)
+    if message.from_user.id in ADMIN_IDS:
+        await message.answer(format_message("success", "Бот покидает чат. До свидания!"))
+        await bot.leave_chat(message.chat.id)
     else:
-        await callback_query.message.answer(
-            format_message("warning", "Вы ещё не подписались на канал!"),
-            reply_markup=get_channel_subscription_keyboard()
-        )
+        await message.answer(format_message("warning", "Только администратор может использовать эту команду!"))
 
+# Обработчики callback-запросов
 @dp.callback_query_handler(lambda c: c.data.startswith('pizza_'))
 async def handle_pizza_selection(callback_query: types.CallbackQuery, state: FSMContext):
     pizza_type = callback_query.data[6:]
@@ -234,20 +223,12 @@ async def handle_pizza_selection(callback_query: types.CallbackQuery, state: FSM
     
     await OrderStates.waiting_for_address.set()
 
-@dp.callback_query_handler(lambda c: c.data in ['menu', 'order', 'profile', 'about', 'admin_panel', 'broadcast', 'back', 'stats', 'set_promo', 'create_ad', 'remove_promo'])
+@dp.callback_query_handler(lambda c: c.data in ['menu', 'order', 'profile', 'about', 
+                                              'admin_panel', 'broadcast', 'back', 
+                                              'stats', 'set_promo', 'create_ad', 'remove_promo'])
 async def handle_callbacks(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
     user_id = callback_query.from_user.id
-    
-    if callback_query.data not in ['back', 'about']:
-        is_subscribed = await check_channel_subscription(user_id)
-        if not is_subscribed:
-            await callback_query.message.answer(
-                format_message("channel", "Для использования бота необходимо подписаться на наш канал!") + "\n\n" +
-                f"Канал: {CHANNEL_USERNAME}",
-                reply_markup=get_channel_subscription_keyboard()
-            )
-            return
     
     if callback_query.data == 'menu':
         await show_menu(callback_query)
@@ -272,10 +253,14 @@ async def handle_callbacks(callback_query: types.CallbackQuery, state: FSMContex
     elif callback_query.data == 'back':
         await back_to_main(callback_query)
 
+# Функции отображения меню
 async def show_menu(callback_query: types.CallbackQuery):
     menu_text = format_message("header", "Наше меню") + "\n\n"
     for name, ingredients in PIZZA_TYPES.items():
         menu_text += f"<b>{name}</b>\n🍽️ {', '.join(ingredients)}\n\n"
+    
+    menu_text += format_message("money", "Бесплатная доставка!") + "\n"
+    menu_text += format_message("love", "Приятного аппетита!")
     
     await bot.send_message(
         callback_query.from_user.id,
@@ -302,6 +287,11 @@ async def show_profile(callback_query: types.CallbackQuery):
     if user_data.get('is_vip'):
         profile_text += format_message("vip", f"VIP статус с {user_data.get('vip_since')}") + "\n"
     
+    if user_data.get('favorite_pizza'):
+        profile_text += f"🍕 Любимая пицца: {user_data['favorite_pizza']}\n"
+    
+    profile_text += "\n" + format_message("love", "Спасибо, что выбрали нас!")
+    
     await bot.send_message(
         user_id,
         profile_text,
@@ -309,9 +299,12 @@ async def show_profile(callback_query: types.CallbackQuery):
     )
 
 async def show_about(callback_query: types.CallbackQuery):
-    about_text = format_message("header", "О нашем сервисе") + "\n\n"
-    about_text += format_message("pizza", "Мы готовим пиццу с любовью!") + "\n"
-    about_text += format_message("delivery", "Быстрая доставка по всему городу") + "\n\n"
+    about_text = format_message("header", "О сервисе Suslik Pizza") + "\n\n"
+    about_text += format_message("pizza", "Основано в 2023 году") + "\n"
+    about_text += format_message("love", "Доставляем счастье в каждой пицце") + "\n"
+    about_text += format_message("money", "Бесплатная доставка 24/7") + "\n\n"
+    about_text += format_message("admin", "Шеф-повар: @Diana873892k") + "\n"
+    about_text += format_message("pizza", f"Заказать: {BOT_USERNAME}") + "\n\n"
     about_text += format_message("vip", f"Добавьте в био '{VIP_PHRASE}' для VIP статуса")
     
     await bot.send_message(
@@ -325,17 +318,32 @@ async def show_admin_panel(callback_query: types.CallbackQuery):
         callback_query.from_user.id,
         format_message("admin", "Админ-панель") + "\n" +
         f"👥 Пользователей: {len(users_db)}\n" +
-        f"🛒 Заказов: {len(orders_history)}",
+        f"🛒 Заказов сегодня: {len([o for o in orders_history if o['date'].date() == datetime.now().date()])}",
         reply_markup=get_admin_panel()
     )
 
 async def show_stats(callback_query: types.CallbackQuery):
+    total_users = len(users_db)
+    total_orders = sum(user['orders_count'] for user in users_db.values())
+    active_vip = sum(user['is_vip'] for user in users_db.values())
+    
+    popular_pizza = {}
+    for order in orders_history:
+        if 'pizza_type' in order:
+            popular_pizza[order['pizza_type']] = popular_pizza.get(order['pizza_type'], 0) + 1
+    
+    stats_text = format_message("header", "Статистика бота") + "\n\n"
+    stats_text += f"👥 Пользователей: {total_users}\n"
+    stats_text += f"🛒 Всего заказов: {total_orders}\n"
+    stats_text += f"🌟 VIP пользователей: {active_vip}\n"
+    
+    if popular_pizza:
+        top_pizza = max(popular_pizza.items(), key=lambda x: x[1])
+        stats_text += f"\n🍕 Самая популярная пицца: {top_pizza[0]} ({top_pizza[1]} заказов)"
+    
     await bot.send_message(
         callback_query.from_user.id,
-        format_message("admin", "Статистика") + "\n" +
-        f"👥 Пользователей: {len(users_db)}\n" +
-        f"🛒 Заказов: {len(orders_history)}\n" +
-        f"🌟 VIP: {sum(user['is_vip'] for user in users_db.values())}",
+        stats_text,
         reply_markup=get_admin_panel()
     )
 
@@ -346,6 +354,7 @@ async def back_to_main(callback_query: types.CallbackQuery):
         reply_markup=get_main_menu(callback_query.from_user.id)
     )
 
+# Админ-функции
 async def start_broadcast(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.send_message(
         callback_query.from_user.id,
@@ -365,7 +374,7 @@ async def set_promo_text(callback_query: types.CallbackQuery, state: FSMContext)
 async def create_advertisement(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.send_message(
         callback_query.from_user.id,
-        format_message("admin", "Отправьте рекламное сообщение:"),
+        format_message("admin", "Отправьте текст рекламы (можно с фото):"),
         reply_markup=get_back_button()
     )
     await AdminStates.waiting_for_ad.set()
@@ -375,14 +384,25 @@ async def remove_promo_text(callback_query: types.CallbackQuery):
     promo_text = None
     await bot.send_message(
         callback_query.from_user.id,
-        format_message("success", "Промо-подпись удалена!"),
+        format_message("success", "Промо-текст удален!"),
         reply_markup=get_admin_panel()
     )
 
 @dp.message_handler(state=AdminStates.waiting_for_broadcast)
 async def process_broadcast(message: types.Message, state: FSMContext):
+    success = 0
+    errors = 0
+    
+    for user_id in users_db:
+        try:
+            await bot.send_message(user_id, message.text)
+            success += 1
+            await asyncio.sleep(0.1)
+        except:
+            errors += 1
+    
     await message.answer(
-        format_message("success", "Рассылка завершена!"),
+        format_message("success", f"Рассылка завершена!\nУспешно: {success}\nНе удалось: {errors}"),
         reply_markup=get_admin_panel()
     )
     await state.finish()
@@ -392,96 +412,174 @@ async def process_promo_text(message: types.Message, state: FSMContext):
     global promo_text
     promo_text = message.text
     await message.answer(
-        format_message("success", "Промо-подпись сохранена!"),
+        format_message("success", "Промо-текст сохранен!"),
         reply_markup=get_admin_panel()
     )
     await state.finish()
 
-@dp.message_handler(state=AdminStates.waiting_for_ad)
+@dp.message_handler(content_types=['text', 'photo'], state=AdminStates.waiting_for_ad)
 async def process_advertisement(message: types.Message, state: FSMContext):
+    success = 0
+    errors = 0
+    
+    for user_id in users_db:
+        try:
+            if message.photo:
+                await bot.send_photo(
+                    user_id,
+                    message.photo[-1].file_id,
+                    caption=message.caption if message.caption else ""
+                )
+            else:
+                await bot.send_message(user_id, message.text)
+            success += 1
+            await asyncio.sleep(0.1)
+        except:
+            errors += 1
+    
     await message.answer(
-        format_message("success", "Реклама отправлена!"),
+        format_message("success", f"Реклама отправлена!\nУспешно: {success}\nНе удалось: {errors}"),
         reply_markup=get_admin_panel()
     )
     await state.finish()
 
+# Обработка заказов
 async def process_group_order(message: types.Message, address: str):
     user = message.from_user
     user_id = user.id
     
     if user_id not in users_db:
         await update_user(user)
+        if user_id not in users_db:
+            await message.reply(format_message("warning", "Произошла ошибка, попробуйте снова"))
+            return
     
+    user_data = users_db[user_id]
+    user_data['orders_count'] += 1
+    
+    # Определяем тип пиццы (для групповых заказов - случайный)
     pizza_type = random.choice(list(PIZZA_TYPES.keys()))
-    is_vip = users_db[user_id].get('is_vip', False)
     
+    # VIP бонус
+    is_vip = user_data.get('is_vip', False)
+    pizzas = random.randint(50, 175) * (2 if is_vip else 1)
+    
+    # Процесс приготовления
     progress_msg = await send_pizza_progress(
         message.chat.id,
-        users_db[user_id]['name'],
+        user_data['name'],
         address,
         pizza_type,
         is_vip
     )
     
+    # Сохраняем заказ в историю
     orders_history.append({
         'user_id': user_id,
+        'username': user.username,
         'address': address,
+        'pizzas': pizzas,
         'pizza_type': pizza_type,
         'is_vip': is_vip,
         'date': datetime.now()
     })
     
+    # Завершение заказа
     await complete_order(
         message.chat.id,
         progress_msg,
-        users_db[user_id]['name'],
+        user_data['name'],
         address,
-        random.randint(1, 10),
+        pizzas,
         pizza_type,
         is_vip
     )
+    
+    # Логи для админов
+    log_text = format_message("header", "НОВЫЙ ЗАКАЗ") + "\n\n"
+    log_text += f"👤 Пользователь: @{user_data.get('username', 'нет')}\n"
+    log_text += f"🌟 VIP: {'Да' if is_vip else 'Нет'}\n"
+    log_text += f"🍕 Пицца: {pizza_type}\n"
+    log_text += f"📍 Адрес: {address}\n"
+    log_text += f"🕒 Время: {datetime.now().strftime('%H:%M:%S')}\n"
+    log_text += f"🍽️ Пицц: {pizzas}\n\n"
+    log_text += format_message("love", "Еда от сусликов зашла)")
+    
+    await send_to_admins(log_text)
 
 @dp.message_handler(state=OrderStates.waiting_for_address)
 async def process_private_order(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
+    
+    if user_id not in users_db:
+        await message.answer(format_message("warning", "Произошла ошибка, начните с /start"))
+        await state.finish()
+        return
+    
+    user_data = users_db[user_id]
+    user_data['orders_count'] += 1
     address = message.text
     
     async with state.proxy() as data:
         pizza_type = data.get('pizza_type')
     
-    is_vip = users_db[user_id].get('is_vip', False)
+    # VIP бонус
+    is_vip = user_data.get('is_vip', False)
+    pizzas = random.randint(50, 175) * (2 if is_vip else 1)
     
+    # Процесс приготовления
     progress_msg = await send_pizza_progress(
         message.chat.id,
-        users_db[user_id]['name'],
+        user_data['name'],
         address,
         pizza_type,
         is_vip
     )
     
+    # Обновляем любимую пиццу
+    if pizza_type:
+        user_data['favorite_pizza'] = pizza_type
+    
+    # Сохраняем заказ в историю
     orders_history.append({
         'user_id': user_id,
+        'username': message.from_user.username,
         'address': address,
+        'pizzas': pizzas,
         'pizza_type': pizza_type,
         'is_vip': is_vip,
         'date': datetime.now()
     })
     
+    # Завершение заказа
     await complete_order(
         message.chat.id,
         progress_msg,
-        users_db[user_id]['name'],
+        user_data['name'],
         address,
-        random.randint(1, 10),
+        pizzas,
         pizza_type,
         is_vip
     )
+    
+    # Логи для админов
+    log_text = format_message("header", "НОВЫЙ ЗАКАЗ") + "\n\n"
+    log_text += f"👤 Пользователь: @{user_data.get('username', 'нет')}\n"
+    log_text += f"🌟 VIP: {'Да' if is_vip else 'Нет'}\n"
+    log_text += f"🍕 Пицца: {pizza_type}\n"
+    log_text += f"📍 Адрес: {address}\n"
+    log_text += f"🕒 Время: {datetime.now().strftime('%H:%M:%S')}\n"
+    log_text += f"🍽️ Пицц: {pizzas}\n\n"
+    log_text += format_message("love", "Еда от сусликов зашла)")
+    
+    await send_to_admins(log_text)
     await state.finish()
 
+# Вспомогательные функции
 async def send_pizza_progress(chat_id, user_name, address, pizza_type, is_vip=False):
     progress_message = await bot.send_message(
         chat_id,
-        format_message("delivery", f"Заказ для {user_name}")
+        format_message("delivery", f"Начали готовить заказ для {user_name}")
     )
     
     for step, percent in PIZZA_PROGRESS:
@@ -489,27 +587,30 @@ async def send_pizza_progress(chat_id, user_name, address, pizza_type, is_vip=Fa
         text += f"📍 Адрес: {address}\n"
         text += f"🍕 Пицца: {pizza_type}\n"
         if is_vip:
-            text += format_message("vip", "VIP заказ!")
+            text += format_message("vip", "VIP заказ x2!")
         
         await bot.edit_message_text(
             text,
             chat_id,
             progress_message.message_id
         )
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(random.uniform(0.5, 1.5))
     
     return progress_message.message_id
 
-async def complete_order(chat_id, message_id, user_name, address, count, pizza_type, is_vip=False):
+async def complete_order(chat_id, message_id, user_name, address, pizzas, pizza_type, is_vip=False):
     text = format_message("success", f"Заказ готов! {user_name}") + "\n"
-    text += f"🍕 Количество: {count}\n"
+    text += f"🍕 Пицц: {pizzas}\n"
     text += f"📍 Адрес: {address}\n"
+    text += f"🍽️ Тип: {pizza_type}\n"
     
     if is_vip:
-        text += "\n" + format_message("vip", "Спасибо за VIP статус!")
+        text += "\n" + format_message("vip", "Спасибо за VIP статус!") + "\n"
     
     if promo_text:
         text += "\n" + format_message("pizza", promo_text)
+    
+    text += "\n" + format_message("love", "Приятного аппетита!")
     
     await bot.edit_message_text(
         text,
@@ -518,11 +619,12 @@ async def complete_order(chat_id, message_id, user_name, address, count, pizza_t
         reply_markup=get_main_menu(chat_id) if chat_id > 0 else None
     )
 
+async def send_to_admins(text: str):
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, text)
+        except:
+            continue
+
 if __name__ == '__main__':
-    print("Бот запущен!")
     executor.start_polling(dp, skip_updates=True)
-
-
-
-
-
