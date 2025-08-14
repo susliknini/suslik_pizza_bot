@@ -6,10 +6,11 @@ from aiogram.utils import executor
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.bot.api import TelegramAPIServer
 import asyncio
 
 TEST_TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI"  
-TEST_API_SERVER = "https://testapi.telegram.org"  
+TEST_API_SERVER = TelegramAPIServer.from_base("https://testapi.telegram.org")
 ADMIN_IDS = [5000673123]  
 BOT_USERNAME = "SuslikPizzaBot"  
 VIP_PHRASE = "пицца - @SuslikPizza"
@@ -521,6 +522,7 @@ async def complete_order(chat_id, message_id, user_name, address, count, pizza_t
 if __name__ == '__main__':
     print("Бот запущен!")
     executor.start_polling(dp, skip_updates=True)
+
 
 
 
