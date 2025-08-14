@@ -203,7 +203,7 @@ async def handle_commands(message: types.Message):
         welcome_text += "\n\n" + format_message("vip", "Поздравляем! Вы получили VIP статус!")
     
         try:
-        await message.answer_photo(
+            await message.answer_photo(
             InputFile('start.jpg'),
             caption=welcome_text,
             reply_markup=get_main_menu(user.id)
@@ -543,6 +543,7 @@ if __name__ == '__main__':
     print("запустилас")
 
     executor.start_polling(dp, skip_updates=True)
+
 
 
 
