@@ -21,7 +21,7 @@ vip_users = set()
 orders_history = []
 
 STYLES = {
-    "header": "🍕 <b>{text}</b> �,
+    "header": "🍕 <b>{text}</b> 🍕",
     "warning": "⚠️ <i>{text}</i>",
     "success": "✅ <b>{text}</b>",
     "vip": "🌟 {text}",
@@ -520,3 +520,4 @@ async def complete_order(chat_id, message_id, user_name, address, count, pizza_t
 if __name__ == '__main__':
     print("Бот запущен!")
     executor.start_polling(dp, skip_updates=True)
+
