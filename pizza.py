@@ -8,7 +8,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 import asyncio
 
-TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI"  
+TEST_TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI"  
+TEST_API_SERVER = "https://testapi.telegram.org"  
 ADMIN_IDS = [5000673123]  
 BOT_USERNAME = "SuslikPizzaBot"  
 VIP_PHRASE = "пицца - @SuslikPizza"
@@ -54,7 +55,7 @@ PIZZA_PROGRESS = [
     ("🛵 Передаем курьеру...", 100)
 ]
 
-bot = Bot(token=TOKEN, parse_mode="HTML")
+bot = Bot(token=TEST_TOKEN, server=TEST_API_SERVER, parse_mode="HTML")
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
@@ -520,5 +521,6 @@ async def complete_order(chat_id, message_id, user_name, address, count, pizza_t
 if __name__ == '__main__':
     print("Бот запущен!")
     executor.start_polling(dp, skip_updates=True)
+
 
 
