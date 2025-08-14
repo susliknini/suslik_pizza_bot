@@ -15,15 +15,13 @@ VIP_PHRASE = "пицца - @SuslikPizza"
 CHANNEL_USERNAME = "@SuslikPizza"  
 CHANNEL_ID = -1001234567890  
 
-
 promo_text = None
 users_db = {}
 vip_users = set()
 orders_history = []
 
-
 STYLES = {
-    "header": "🍕 <b>{text}</b> 🍕",
+    "header": "🍕 <b>{text}</b> �,
     "warning": "⚠️ <i>{text}</i>",
     "success": "✅ <b>{text}</b>",
     "vip": "🌟 {text}",
@@ -34,7 +32,6 @@ STYLES = {
     "channel": "📢 {text}"
 }
 
-
 PIZZA_TYPES = {
     "Маргарита": ["томатный соус", "моцарелла", "базилик"],
     "Пепперони": ["томатный соус", "моцарелла", "пепперони"],
@@ -43,7 +40,6 @@ PIZZA_TYPES = {
     "Мясная": ["томатный соус", "моцарелла", "пепперони", "ветчина", "бекон"],
     "Веган": ["томатный соус", "тофу", "грибы", "оливки", "перец"]
 }
-
 
 PIZZA_PROGRESS = [
     ("🧑‍🍳 Начали готовить вашу пиццу...", 0),
@@ -58,11 +54,9 @@ PIZZA_PROGRESS = [
     ("🛵 Передаем курьеру...", 100)
 ]
 
-
 bot = Bot(token=TOKEN, parse_mode="HTML")
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
-
 
 class OrderStates(StatesGroup):
     waiting_for_address = State()
@@ -72,7 +66,6 @@ class AdminStates(StatesGroup):
     waiting_for_broadcast = State()
     waiting_for_promo = State()
     waiting_for_ad = State()
-
 
 def create_keyboard(buttons, row_width=2):
     keyboard = InlineKeyboardMarkup(row_width=row_width)
@@ -86,10 +79,8 @@ def get_main_menu(user_id: int):
         InlineKeyboardButton("👤 Профиль", callback_data="profile"),
         InlineKeyboardButton("ℹ️ О сервисе", callback_data="about")
     ]
-    
     if user_id in ADMIN_IDS:
         buttons.append(InlineKeyboardButton("👑 Админ-панель", callback_data="admin_panel"))
-    
     return create_keyboard(buttons)
 
 def get_pizza_menu():
@@ -121,10 +112,8 @@ def get_channel_subscription_keyboard():
         InlineKeyboardButton("Я подписался ✅", callback_data="check_subscription")
     )
 
-
 def format_message(style, text, **kwargs):
     return STYLES[style].format(text=text, **kwargs)
-
 
 def check_vip_status(user: types.User):
     try:
@@ -132,14 +121,12 @@ def check_vip_status(user: types.User):
     except:
         return False
 
-
 async def check_channel_subscription(user_id: int):
     try:
         member = await bot.get_chat_member(CHANNEL_ID, user_id)
         return member.status in ['member', 'administrator', 'creator']
     except:
         return False
-
 
 async def update_user(user: types.User):
     user_id = user.id
@@ -165,13 +152,11 @@ async def update_user(user: types.User):
     
     return False
 
-
 @dp.message_handler(commands=['start', 'pizza'])
 async def handle_commands(message: types.Message):
     user = message.from_user
     chat_type = message.chat.type
     
-   
     if chat_type == 'private':
         is_subscribed = await check_channel_subscription(user.id)
         if not is_subscribed:
@@ -202,8 +187,8 @@ async def handle_commands(message: types.Message):
     if vip_updated:
         welcome_text += "\n\n" + format_message("vip", "Поздравляем! Вы получили VIP статус!")
     
-        try:
-            await message.answer_photo(
+    try:
+        await message.answer_photo(
             InputFile('start.jpg'),
             caption=welcome_text,
             reply_markup=get_main_menu(user.id)
@@ -230,7 +215,6 @@ async def check_subscription_callback(callback_query: types.CallbackQuery):
             reply_markup=get_channel_subscription_keyboard()
         )
 
-
 @dp.callback_query_handler(lambda c: c.data.startswith('pizza_'))
 async def handle_pizza_selection(callback_query: types.CallbackQuery, state: FSMContext):
     pizza_type = callback_query.data[6:]
@@ -249,14 +233,11 @@ async def handle_pizza_selection(callback_query: types.CallbackQuery, state: FSM
     
     await OrderStates.waiting_for_address.set()
 
-@dp.callback_query_handler(lambda c: c.data in ['menu', 'order', 'profile', 'about', 
-                                              'admin_panel', 'broadcast', 'back', 
-                                              'stats', 'set_promo', 'create_ad', 'remove_promo'])
+@dp.callback_query_handler(lambda c: c.data in ['menu', 'order', 'profile', 'about', 'admin_panel', 'broadcast', 'back', 'stats', 'set_promo', 'create_ad', 'remove_promo'])
 async def handle_callbacks(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
     user_id = callback_query.from_user.id
     
-
     if callback_query.data not in ['back', 'about']:
         is_subscribed = await check_channel_subscription(user_id)
         if not is_subscribed:
@@ -364,7 +345,6 @@ async def back_to_main(callback_query: types.CallbackQuery):
         reply_markup=get_main_menu(callback_query.from_user.id)
     )
 
-
 async def start_broadcast(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.send_message(
         callback_query.from_user.id,
@@ -423,7 +403,6 @@ async def process_advertisement(message: types.Message, state: FSMContext):
         reply_markup=get_admin_panel()
     )
     await state.finish()
-
 
 async def process_group_order(message: types.Message, address: str):
     user = message.from_user
@@ -498,7 +477,6 @@ async def process_private_order(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-
 async def send_pizza_progress(chat_id, user_name, address, pizza_type, is_vip=False):
     progress_message = await bot.send_message(
         chat_id,
@@ -540,10 +518,5 @@ async def complete_order(chat_id, message_id, user_name, address, count, pizza_t
     )
 
 if __name__ == '__main__':
-    print("запустилас")
-
+    print("Бот запущен!")
     executor.start_polling(dp, skip_updates=True)
-
-
-
-
