@@ -10,7 +10,7 @@ import asyncio
 
 # Конфигурация бота
 BOT_TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI/test"
-ADMIN_IDS = [5000385710]  # Ваш ID администратора
+ADMIN_IDS = [5000673123]  # Ваш ID администратора
 BOT_USERNAME = "SusIikPizzabot"  # Без @ если будет использоваться в ссылках
 VIP_PHRASE = "пицца - @SusIikPizzabot"
 
@@ -628,3 +628,4 @@ async def send_to_admins(text: str):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
