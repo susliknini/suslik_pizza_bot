@@ -10,7 +10,7 @@ import asyncio
 
 TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI"  
 ADMIN_IDS = [5000673123]  
-BOT_USERNAME = SuslikPizzaBot"  
+BOT_USERNAME = "SuslikPizzaBot"  
 VIP_PHRASE = "пицца - @SuslikPizza"
 CHANNEL_USERNAME = "@SuslikPizza"  
 CHANNEL_ID = -1001234567890  
@@ -542,4 +542,5 @@ if __name__ == '__main__':
     print("запустилас")
 
     executor.start_polling(dp, skip_updates=True)
+
 
