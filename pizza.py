@@ -8,9 +8,9 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 import asyncio
 
-TOKEN = "7565993208:AAG6m3jckdvEbHLLtxFHXYUYarGGdjtA7Ms"  
-ADMIN_IDS = [5529756753]  
-BOT_USERNAME = SusIikPizzarobot"  
+TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI"  
+ADMIN_IDS = [5000673123]  
+BOT_USERNAME = SuslikPizzaBot"  
 VIP_PHRASE = "пицца - @SuslikPizza"
 CHANNEL_USERNAME = "@SuslikPizza"  
 CHANNEL_ID = -1001234567890  
@@ -542,3 +542,4 @@ if __name__ == '__main__':
     print("запустилас")
 
     executor.start_polling(dp, skip_updates=True)
+
