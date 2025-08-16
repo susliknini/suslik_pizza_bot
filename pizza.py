@@ -9,8 +9,8 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 import asyncio
 
 # Конфигурация бота
-BOT_TOKEN = "5000385710:AAHSXXCT4S4MafwbG7e2yZ6hmg4KiXDG-ZI/test"
-ADMIN_IDS = [5000673123]  # Ваш ID администратора
+BOT_TOKEN = "7764212325:AAGbquqNgc5b0BNMYq8FMVSic7PWg5n3OK0"
+ADMIN_IDS = [8181512568]  # Ваш ID администратора
 BOT_USERNAME = "SuslikPizzaBot"  # Без @ если будет использоваться в ссылках
 VIP_PHRASE = "пицца - @SuslikPizzaBot"
 
@@ -594,7 +594,7 @@ async def send_pizza_progress(chat_id, user_name, address, pizza_type, is_vip=Fa
             chat_id,
             progress_message.message_id
         )
-        await asyncio.sleep(random.uniform(0.5, 1.5))
+        await asyncio.sleep(random.uniform(4, 12))
     
     return progress_message.message_id
 
@@ -628,5 +628,6 @@ async def send_to_admins(text: str):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+
 
 
