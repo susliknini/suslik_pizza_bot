@@ -7,7 +7,7 @@ from aiogram.filters import Command
 import random
 from datetime import datetime
 
-# Конфигурация бота
+async def main():
 BOT_TOKEN = "8258547780:AAEYBZ7-5jzitiJXA4GdSGR2cruhbDR2UGw"
 
 # Инициализация бота и диспетчера
@@ -386,9 +386,8 @@ async def process_complaint(message: types.Message):
         f"🍕 Приятного аппетита! Ваша пицца {pizza} уже в пути!"
     )
 
-# Запуск бота
-async def main():
-    await dp.start_polling(bot)
+await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+
