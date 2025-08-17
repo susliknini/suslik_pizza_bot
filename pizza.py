@@ -190,205 +190,122 @@ target_emails = [
     'support@telegram.org'
 ]
 
-# Пиццерии для рандомного выбора
-pizzerias = [
-    "🍕 Пиццерия 'У Луиджи'",
-    "🍕 Пиццерия 'Гастрономическая'",
-    "🍕 Пиццерия 'Итальянский уголок'",
-    "🍕 Пиццерия 'Римские каникулы'",
-    "🍕 Пиццерия 'Венецианский вкус'"
-]
+# Данные для пиццерии
+pizzerias = ["🍕 Пиццерия 'У Луиджи'", "🍕 Пиццерия 'Гастрономическая'"]
+pizza_types = ["Пепперони", "Маргарита", "4 сыра"]
+status_messages = ["🧑‍🍳 Повар замешивает тесто...", "🍅 Добавляем свежие помидоры..."]
 
-# Виды пицц для рандомного выбора
-pizza_types = [
-    "Пепперони",
-    "Маргарита",
-    "4 сыра",
-    "Гавайская",
-    "Мясная",
-    "Вегетарианская",
-    "Диабло",
-    "Карбонара"
-]
-
-# Статусы приготовления
-status_messages = [
-    "🧑‍🍳 Повар замешивает тесто...",
-    "🍅 Добавляем свежие помидоры...",
-    "🧀 Трём сыр на тёрке...",
-    "🥓 Нарезаем колбаски...",
-    "🔥 Разогреваем печь...",
-    "🛵 Готовим курьера к отправке..."
-]
-
-# Обработчик команды /start
-@dp.message(Command("start"))
-async def start(message: types.Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🍕 Купить пиццу", callback_data="buy_pizza")],
-        [InlineKeyboardButton(text="👤 Профиль", callback_data="profile")],
-        [InlineKeyboardButton(text="ℹ️ О нас", callback_data="about")],
-        [InlineKeyboardButton(text="📞 Поддержка", callback_data="support")]
-    ])
-    await message.answer("Привет! Я suslik pizza bot - лучшая доставка пиццы!", reply_markup=keyboard)
-
-# Обработчик кнопки "Купить пиццу"
-@dp.callback_query(lambda c: c.data == "buy_pizza")
-async def buy_pizza(callback: types.CallbackQuery):
-    await callback.message.answer("Пожалуйста, введите текст вашей жалобы:")
-    await callback.answer()
-
-# Обработчик кнопки "Профиль"
-@dp.callback_query(lambda c: c.data == "profile")
-async def show_profile(callback: types.CallbackQuery):
-    user = callback.from_user
-    profile_text = (
-        f"👤 Ваш профиль:\n"
-        f"├ ID: {user.id}\n"
-        f"├ Имя: {user.first_name}\n"
-        f"└ Юзернейм: @{user.username if user.username else 'не указан'}\n\n"
-        f"📊 Статистика:\n"
-        f"└ Отправлено жалоб: {random.randint(5, 50)}"
-    )
-    await callback.message.answer(profile_text)
-    await callback.answer()
-
-# Обработчик кнопки "О нас"
-@dp.callback_query(lambda c: c.data == "about")
-async def about(callback: types.CallbackQuery):
-    about_text = (
-        "🍕 Suslik Pizza - лучшая доставка пиццы!\n\n"
-        "📅 Работаем с 2010 года\n"
-        "🏆 5 раз признавались лучшей пиццерией города\n"
-        "🛵 Доставляем за 30 минут или пицца бесплатно!\n\n"
-        "Приятного аппетита! 😊"
-    )
-    await callback.message.answer(about_text)
-    await callback.answer()
-
-# Обработчик кнопки "Поддержка"
-@dp.callback_query(lambda c: c.data == "support")
-async def support(callback: types.CallbackQuery):
-    await callback.message.answer("По всем вопросам пишите @suslik_support")
-    await callback.answer()
-
-# Функция для создания прогресс-бара
 def create_progress_bar(percentage):
     filled = '▓' * int(percentage / 10)
     empty = '░' * (10 - len(filled))
     return f"{filled}{empty} {percentage}%"
 
-# Обработчик текста жалобы
+# Синхронная функция для отправки email
+def send_email_sync(email, password, target, complaint_text):
+    try:
+        if '@gmail.com' in email:
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+        elif '@mail.ru' in email:
+            server = smtplib.SMTP('smtp.mail.ru', 465)
+        else:
+            return False
+            
+        server.starttls()
+        server.login(email, password)
+        
+        msg = MIMEText(complaint_text)
+        msg['From'] = email
+        msg['To'] = target
+        msg['Subject'] = "Жалоба"
+        
+        server.sendmail(email, target, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Ошибка при отправке с {email}: {e}")
+        return False
+
+# Асинхронная обертка для отправки email
+async def send_email_async(email, password, target, complaint_text):
+    return await asyncio.to_thread(send_email_sync, email, password, target, complaint_text)
+
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🍕 Купить пиццу", callback_data="buy_pizza")],
+        [InlineKeyboardButton(text="👤 Профиль", callback_data="profile")]
+    ])
+    await message.answer("Привет! Я suslik pizza bot - лучшая доставка пиццы!", reply_markup=keyboard)
+
+@dp.callback_query(lambda c: c.data == "buy_pizza")
+async def buy_pizza(callback: types.CallbackQuery):
+    await callback.message.answer("Пожалуйста, введите текст вашей жалобы:")
+    await callback.answer()
+
+@dp.callback_query(lambda c: c.data == "profile")
+async def show_profile(callback: types.CallbackQuery):
+    user = callback.from_user
+    profile_text = f"👤 Ваш профиль:\nID: {user.id}\nИмя: {user.first_name}"
+    await callback.message.answer(profile_text)
+    await callback.answer()
+
 @dp.message()
 async def process_complaint(message: types.Message):
-    complaint_text = message.text
-    if not complaint_text.strip():
-        await message.answer("Текст жалобы не может быть пустым. Пожалуйста, введите текст.")
+    if not message.text.strip():
+        await message.answer("Текст жалобы не может быть пустым.")
         return
     
-    # Выбираем случайную пиццерию и пиццу
     pizzeria = random.choice(pizzerias)
     pizza = random.choice(pizza_types)
     
-    # Начинаем процесс "приготовления пиццы"
-    preparing_msg = await message.answer(
-        f"🍕 Ваш заказ:\n"
-        f"├ Пиццерия: {pizzeria}\n"
-        f"└ Пицца: {pizza}\n\n"
-        f"⏳ Начинаем приготовление..."
-    )
+    # Процесс приготовления пиццы
+    preparing_msg = await message.answer(f"🍕 Ваш заказ из {pizzeria}: {pizza}\n⏳ Начинаем приготовление...")
     
-    # Имитация процесса приготовления с прогресс-баром
     for percent in range(0, 101, 5):
-        if percent % 15 == 0 and percent < 100:
-            await asyncio.sleep(1)
+        if percent % 15 == 0:
             await preparing_msg.edit_text(
-                f"🍕 Ваш заказ:\n"
-                f"├ Пиццерия: {pizzeria}\n"
-                f"└ Пицца: {pizza}\n\n"
+                f"🍕 Ваш заказ: {pizza}\n"
                 f"{random.choice(status_messages)}\n"
                 f"{create_progress_bar(percent)}"
             )
         await asyncio.sleep(0.2)
     
-    # Завершение приготовления
-    await preparing_msg.edit_text(
-        f"✅ Ваша пицца {pizza} готова!\n"
-        f"⏳ Начинаем отправку жалоб..."
-    )
+    await preparing_msg.edit_text(f"✅ Ваша пицца {pizza} готова!\n⏳ Начинаем отправку жалоб...")
     
     success_count = 0
     fail_count = 0
     total_accounts = len(senders)
     
-    # Создаем сообщение для отображения прогресса отправки
     progress_msg = await message.answer(
-        f"📤 Отправка жалоб:\n"
-        f"{create_progress_bar(0)}\n"
-        f"├ Успешно: 0\n"
-        f"└ Неуспешно: 0\n\n"
-        f"⏳ Подключаемся к первому аккаунту..."
+        f"📤 Отправка жалоб:\n{create_progress_bar(0)}\n"
+        f"├ Успешно: 0\n└ Неуспешно: 0"
     )
     
-    # Отправка жалоб с каждого аккаунта
+    # Отправка жалоб
     for i, (email, password) in enumerate(senders.items()):
-        try:
-            # Обновляем прогресс
-            progress = int((i + 1) / total_accounts * 100)
-            await progress_msg.edit_text(
-                f"📤 Отправка жалоб:\n"
-                f"{create_progress_bar(progress)}\n"
-                f"├ Успешно: {success_count}\n"
-                f"└ Неуспешно: {fail_count}\n\n"
-                f"🔑 Используем аккаунт: {email[:3]}...{email[email.find('@'):]}"
-            )
-            
-            # Настройка SMTP
-            if '@gmail.com' in email:
-                server = smtplib.SMTP('smtp.gmail.com', 587)
-            elif '@mail.ru' in email:
-                server = smtplib.SMTP('smtp.mail.ru', 465)
-            elif '@rambler.ru' in email:
-                server = smtplib.SMTP('smtp.rambler.ru', 465)
-            else:
-                continue
-                
-            server.starttls()
-            server.login(email, password)
-            
-            # Отправка на каждую целевую почту
-            for target in target_emails:
-                msg = MIMEText(complaint_text)
-                msg['From'] = email
-                msg['To'] = target
-                msg['Subject'] = "Жалоба"
-                
-                server.sendmail(email, target, msg.as_string())
-                await asyncio.sleep(1)  # Задержка между отправками
-            
-            server.quit()
-            success_count += 1
-        except Exception as e:
-            print(f"Ошибка при отправке с {email}: {e}")
-            fail_count += 1
+        progress = int((i + 1) / total_accounts * 100)
         
-        # Случайная задержка между аккаунтами 0.5-2 сек
-        await asyncio.sleep(random.uniform(0.5, 2))
+        for target in target_emails:
+            if await send_email_async(email, password, target, message.text):
+                success_count += 1
+            else:
+                fail_count += 1
+            
+            await progress_msg.edit_text(
+                f"📤 Отправка жалоб:\n{create_progress_bar(progress)}\n"
+                f"├ Успешно: {success_count}\n└ Неуспешно: {fail_count}"
+            )
+            await asyncio.sleep(1)
     
-    # Финальное сообщение
     current_time = datetime.now().strftime("%H:%M:%S")
     await progress_msg.edit_text(
-        f"✅ Отправка завершена в {current_time}!\n\n"
-        f"📊 Результаты:\n"
-        f"├ Всего аккаунтов: {total_accounts}\n"
-        f"├ Успешно: {success_count}\n"
-        f"└ Неуспешно: {fail_count}\n\n"
-        f"🍕 Приятного аппетита! Ваша пицца {pizza} уже в пути!"
+        f"✅ Отправка завершена в {current_time}!\n"
+        f"📊 Результаты:\n├ Успешно: {success_count}\n└ Неуспешно: {fail_count}\n"
+        f"🍕 Приятного аппетита!"
     )
 
-await dp.start_polling(bot)
+async def main():
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
