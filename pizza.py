@@ -7,8 +7,7 @@ from aiogram.filters import Command
 import random
 from datetime import datetime
 
-async def main():
-    BOT_TOKEN = "8258547780:AAEYBZ7-5jzitiJXA4GdSGR2cruhbDR2UGw"
+BOT_TOKEN = "8258547780:AAEYBZ7-5jzitiJXA4GdSGR2cruhbDR2UGw"
 
 # Инициализация бота и диспетчера
 bot = Bot(token=BOT_TOKEN)
@@ -309,3 +308,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
