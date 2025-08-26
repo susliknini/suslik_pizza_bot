@@ -2,13 +2,9 @@ import asyncio
 import logging
 import os
 import time
+import math
 from datetime import datetime
 from typing import List, Tuple
-import math
-import nest_asyncio
-
-# Применяем patch для nested event loops
-nest_asyncio.apply()
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
@@ -51,6 +47,8 @@ def load_sessions() -> List[TelegramClient]:
     clients = []
     if not os.path.exists(sessions_folder):
         os.makedirs(sessions_folder)
+        logger.info(f"Создана папка {sessions_folder}")
+        return clients
     
     for file in os.listdir(sessions_folder):
         if file.endswith('.session'):
@@ -58,33 +56,36 @@ def load_sessions() -> List[TelegramClient]:
             try:
                 client = TelegramClient(session_path, API_ID, API_HASH)
                 clients.append(client)
+                logger.info(f"Загружена сессия: {file}")
             except Exception as e:
                 logger.error(f"Ошибка загрузки сессии {file}: {e}")
     
+    logger.info(f"Загружено сессий: {len(clients)}")
     return clients
 
-# Синхронная функция для отправки жалобы
+# Функция для отправки жалобы
 async def send_report_sync(client: TelegramClient, message_link: str) -> Tuple[bool, str]:
     try:
-        async with client:
-            if 't.me/' in message_link:
-                parts = message_link.split('/')
-                if len(parts) >= 2:
-                    channel_username = parts[-2]
-                    message_id = int(parts[-1])
-                    
-                    entity = await client.get_entity(channel_username)
-                    peer = InputPeerChannel(entity.id, entity.access_hash)
-                    
-                    await client(ReportRequest(
-                        peer=peer,
-                        id=[message_id],
-                        reason=InputReportReasonSpam(),
-                        message="Спам"
-                    ))
-                    
-                    return True, "ДОСТАВЛЕНО"
-                    
+        if 't.me/' in message_link:
+            parts = message_link.split('/')
+            if len(parts) >= 2:
+                channel_username = parts[-2]
+                message_id = int(parts[-1])
+                
+                await client.start()
+                entity = await client.get_entity(channel_username)
+                peer = InputPeerChannel(entity.id, entity.access_hash)
+                
+                await client(ReportRequest(
+                    peer=peer,
+                    id=[message_id],
+                    reason=InputReportReasonSpam(),
+                    message="Спам"
+                ))
+                
+                await client.disconnect()
+                return True, "ДОСТАВЛЕНО"
+                
     except Exception as e:
         error_msg = str(e)
         if "FLOOD" in error_msg.upper():
@@ -109,16 +110,32 @@ async def cmd_start(message: types.Message):
 # Обработчик кнопки "Донос"
 @dp.callback_query(F.data == "report")
 async def report_handler(callback: types.CallbackQuery):
-    await callback.message.answer("📩 Введите ссылку на сообщение из публичного  чатаа с нарушением:")
+    await callback.message.answer("📩 Введите ссылку на сообщение из публичного чата с нарушением:")
     active_reports[callback.from_user.id] = "waiting_link"
     await callback.answer()
 
 # Обработчик ввода ссылки
-@dp.message(F.text.contains("t.me/"))
-async def process_link(message: types.Message):
-    if message.from_user.id not in active_reports:
-        return
+@dp.message(F.text)
+async def process_message(message: types.Message):
+    user_id = message.from_user.id
     
+    # Проверяем, ожидаем ли мы ссылку от пользователя
+    if user_id in active_reports and active_reports[user_id] == "waiting_link":
+        if 't.me/' in message.text:
+            await process_link(message)
+        else:
+            await message.answer("❌ Это не похоже на ссылку Telegram. Введите ссылку в формате: https://t.me/username/123")
+    
+    # Проверяем, ожидаем ли мы обращение в поддержку
+    elif user_id in active_reports and active_reports[user_id] == "waiting_support":
+        await process_support(message)
+    
+    # Игнорируем другие сообщения
+    else:
+        pass
+
+# Основная функция обработки ссылки
+async def process_link(message: types.Message):
     link = message.text.strip()
     user_id = message.from_user.id
     global order_counter
@@ -144,12 +161,17 @@ async def process_link(message: types.Message):
     floods = 0
     current_report = 0
     
+    if total_reports == 0:
+        await progress_message.edit_text("❌ Нет доступных сессий! Добавьте .session файлы в папку sessions/")
+        del active_reports[user_id]
+        return
+    
     for client_index, client in enumerate(clients):
         for i in range(5):
             try:
                 # Обновляем прогресс-бар
                 current_report += 1
-                progress_percent = math.floor((current_report / total_reports) * 100)
+                progress_percent = min(math.floor((current_report / total_reports) * 100), 100)
                 progress_bar = "▰" * math.floor(progress_percent / 10) + "▱" * (10 - math.floor(progress_percent / 10))
                 
                 # Обновляем сообщение с прогрессом
@@ -159,17 +181,14 @@ async def process_link(message: types.Message):
                         f"{progress_bar} {progress_percent}%\n"
                         f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}"
                     )
-                except:
-                    pass
+                except Exception as e:
+                    logger.error(f"Ошибка обновления прогресса: {e}")
                 
-                # Используем run_in_executor для избежания конфликта event loop
-                result, status = await asyncio.get_event_loop().run_in_executor(
-                    None, 
-                    lambda: asyncio.run(send_report_sync(client, link))
-                )
+                # Отправляем жалобу
+                result, status = await send_report_sync(client, link)
                 
                 current_time = datetime.now().strftime("%H:%M:%S")
-                session_name = os.path.basename(client.session.filename)
+                session_name = os.path.basename(client.session.filename) if hasattr(client, 'session') else f"session_{client_index}"
                 
                 log_entry = f"[{current_time}] {session_name} -> {link} - [{status}]\n"
                 
@@ -187,7 +206,7 @@ async def process_link(message: types.Message):
                 
             except Exception as e:
                 current_time = datetime.now().strftime("%H:%M:%S")
-                session_name = os.path.basename(client.session.filename) if hasattr(client, 'session') else "unknown"
+                session_name = f"session_{client_index}"
                 error_msg = str(e)
                 if len(error_msg) > 50:
                     error_msg = error_msg[:47] + "..."
@@ -214,8 +233,8 @@ async def process_link(message: types.Message):
             f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}\n"
             f"📊 Готовлю отчет..."
         )
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Ошибка обновления прогресса: {e}")
     
     # Отправляем лог пользователю
     try:
@@ -265,7 +284,8 @@ async def process_link(message: types.Message):
     except:
         pass
     
-    del active_reports[user_id]
+    if user_id in active_reports:
+        del active_reports[user_id]
 
 # Обработчик кнопки "Профиль"
 @dp.callback_query(F.data == "profile")
@@ -288,26 +308,23 @@ async def support_handler(callback: types.CallbackQuery):
     await callback.answer()
 
 # Обработчик обращения в поддержку
-@dp.message(F.text)
 async def process_support(message: types.Message):
-    if message.from_user.id not in active_reports:
-        return
+    support_text = (
+        f"🆘 Новое обращение в поддержку:\n"
+        f"👤 От: @{message.from_user.username}\n"
+        f"🆔 ID: {message.from_user.id}\n"
+        f"📝 Текст:\n{message.text}"
+    )
     
-    if active_reports[message.from_user.id] == "waiting_support":
-        support_text = (
-            f"🆘 Новое обращение в поддержку:\n"
-            f"👤 От: @{message.from_user.username}\n"
-            f"🆔 ID: {message.from_user.id}\n"
-            f"📝 Текст:\n{message.text}"
-        )
-        
-        for admin_id in ADMIN_IDS + [SUPPORT_ID]:
-            try:
-                await bot.send_message(admin_id, support_text)
-            except Exception as e:
-                logger.error(f"Ошибка отправки сообщения админу {admin_id}: {e}")
-        
-        await message.answer("✅ Ваше обращение отправлено в поддержку!")
+    for admin_id in ADMIN_IDS + [SUPPORT_ID]:
+        try:
+            await bot.send_message(admin_id, support_text)
+        except Exception as e:
+            logger.error(f"Ошибка отправки сообщения админу {admin_id}: {e}")
+    
+    await message.answer("✅ Ваше обращение отправлено в поддержку!")
+    
+    if message.from_user.id in active_reports:
         del active_reports[message.from_user.id]
 
 # Обработчик кнопки "Поддержать проект"
@@ -334,4 +351,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
