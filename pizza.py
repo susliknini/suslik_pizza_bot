@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime
 from typing import List, Tuple
+import math
 import nest_asyncio
 
 # Применяем patch для nested event loops
@@ -91,7 +92,6 @@ async def send_report_sync(client: TelegramClient, message_link: str) -> Tuple[b
         elif "AUTH" in error_msg.upper() or "SESSION" in error_msg.upper():
             return False, "НЕВАЛИД"
         else:
-            # Обрезаем длинные ошибки
             if len(error_msg) > 50:
                 error_msg = error_msg[:47] + "..."
             return False, f"ОШИБКА: {error_msg}"
@@ -134,16 +134,34 @@ async def process_link(message: types.Message):
         log_file.write(f"Ссылка: {link}\n")
         log_file.write("-" * 42 + "\n")
     
-    await message.answer("🚀 Начинаю отправку жалоб...")
+    # Отправляем начальное сообщение с прогресс-баром
+    progress_message = await message.answer("🚀 Начинаю отправку жалоб...\n\n▰▱▱▱▱▱▱▱▱ 0%")
     
     clients = load_sessions()
+    total_reports = len(clients) * 5  # 5 жалоб с каждой сессии
     successful = 0
     failed = 0
     floods = 0
+    current_report = 0
     
-    for client in clients:
+    for client_index, client in enumerate(clients):
         for i in range(5):
             try:
+                # Обновляем прогресс-бар
+                current_report += 1
+                progress_percent = math.floor((current_report / total_reports) * 100)
+                progress_bar = "▰" * math.floor(progress_percent / 10) + "▱" * (10 - math.floor(progress_percent / 10))
+                
+                # Обновляем сообщение с прогрессом
+                try:
+                    await progress_message.edit_text(
+                        f"🚀 Отправка жалоб...\n\n"
+                        f"{progress_bar} {progress_percent}%\n"
+                        f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}"
+                    )
+                except:
+                    pass
+                
                 # Используем run_in_executor для избежания конфликта event loop
                 result, status = await asyncio.get_event_loop().run_in_executor(
                     None, 
@@ -188,6 +206,17 @@ async def process_link(message: types.Message):
         log_file.write(f"Неуспешно: {failed}\n")
         log_file.write(f"Флудов: {floods}\n")
     
+    # Обновляем прогресс-бар на 100%
+    try:
+        await progress_message.edit_text(
+            f"✅ Отправка завершена!\n\n"
+            f"▰▰▰▰▰▰▰▰▰▰ 100%\n"
+            f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}\n"
+            f"📊 Готовлю отчет..."
+        )
+    except:
+        pass
+    
     # Отправляем лог пользователю
     try:
         document = FSInputFile(log_filename)
@@ -196,8 +225,16 @@ async def process_link(message: types.Message):
             caption=f"📊 Отчет готов!\n"
                    f"✅ Успешно: {successful}\n"
                    f"❌ Неуспешно: {failed}\n"
-                   f"🌊 Флудов: {floods}"
+                   f"🌊 Флудов: {floods}\n"
+                   f"📊 Всего отправок: {total_reports}"
         )
+        
+        # Удаляем сообщение с прогресс-баром
+        try:
+            await progress_message.delete()
+        except:
+            pass
+            
     except Exception as e:
         logger.error(f"Ошибка отправки файла пользователю: {e}")
         await message.answer(
@@ -216,7 +253,8 @@ async def process_link(message: types.Message):
                 admin_id,
                 document,
                 caption=f"📋 Новый отчет от @{message.from_user.username}\n"
-                       f"👤 ID: {message.from_user.id}"
+                       f"👤 ID: {message.from_user.id}\n"
+                       f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}"
             )
         except Exception as e:
             logger.error(f"Ошибка отправки файла админу {admin_id}: {e}")
@@ -296,3 +334,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
