@@ -4,6 +4,10 @@ import os
 import time
 from datetime import datetime
 from typing import List, Tuple
+import nest_asyncio
+
+# Применяем patch для nested event loops
+nest_asyncio.apply()
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
@@ -58,27 +62,28 @@ def load_sessions() -> List[TelegramClient]:
     
     return clients
 
-# Функция для отправки жалобы
-async def send_report(client: TelegramClient, message_link: str) -> Tuple[bool, str]:
+# Синхронная функция для отправки жалобы
+async def send_report_sync(client: TelegramClient, message_link: str) -> Tuple[bool, str]:
     try:
-        if 't.me/' in message_link:
-            parts = message_link.split('/')
-            if len(parts) >= 2:
-                channel_username = parts[-2]
-                message_id = int(parts[-1])
-                
-                entity = await client.get_entity(channel_username)
-                peer = InputPeerChannel(entity.id, entity.access_hash)
-                
-                await client(ReportRequest(
-                    peer=peer,
-                    id=[message_id],
-                    reason=InputReportReasonSpam(),
-                    message="Спам"
-                ))
-                
-                return True, "ДОСТАВЛЕНО"
-                
+        async with client:
+            if 't.me/' in message_link:
+                parts = message_link.split('/')
+                if len(parts) >= 2:
+                    channel_username = parts[-2]
+                    message_id = int(parts[-1])
+                    
+                    entity = await client.get_entity(channel_username)
+                    peer = InputPeerChannel(entity.id, entity.access_hash)
+                    
+                    await client(ReportRequest(
+                        peer=peer,
+                        id=[message_id],
+                        reason=InputReportReasonSpam(),
+                        message="Спам"
+                    ))
+                    
+                    return True, "ДОСТАВЛЕНО"
+                    
     except Exception as e:
         error_msg = str(e)
         if "FLOOD" in error_msg.upper():
@@ -139,28 +144,32 @@ async def process_link(message: types.Message):
     for client in clients:
         for i in range(5):
             try:
-                async with client:
-                    result, status = await send_report(client, link)
-                    current_time = datetime.now().strftime("%H:%M:%S")
-                    session_name = os.path.basename(client.session.filename)
-                    
-                    log_entry = f"[{current_time}] {session_name} -> {link} - [{status}]\n"
-                    
-                    with open(log_filename, 'a', encoding='utf-8') as log_file:
-                        log_file.write(log_entry)
-                    
-                    if status == "ДОСТАВЛЕНО":
-                        successful += 1
-                    elif status == "ФЛУД":
-                        floods += 1
-                    else:
-                        failed += 1
-                    
-                    await asyncio.sleep(3)
-                    
+                # Используем run_in_executor для избежания конфликта event loop
+                result, status = await asyncio.get_event_loop().run_in_executor(
+                    None, 
+                    lambda: asyncio.run(send_report_sync(client, link))
+                )
+                
+                current_time = datetime.now().strftime("%H:%M:%S")
+                session_name = os.path.basename(client.session.filename)
+                
+                log_entry = f"[{current_time}] {session_name} -> {link} - [{status}]\n"
+                
+                with open(log_filename, 'a', encoding='utf-8') as log_file:
+                    log_file.write(log_entry)
+                
+                if status == "ДОСТАВЛЕНО":
+                    successful += 1
+                elif status == "ФЛУД":
+                    floods += 1
+                else:
+                    failed += 1
+                
+                await asyncio.sleep(3)
+                
             except Exception as e:
                 current_time = datetime.now().strftime("%H:%M:%S")
-                session_name = os.path.basename(client.session.filename) if client else "unknown"
+                session_name = os.path.basename(client.session.filename) if hasattr(client, 'session') else "unknown"
                 error_msg = str(e)
                 if len(error_msg) > 50:
                     error_msg = error_msg[:47] + "..."
@@ -280,7 +289,10 @@ async def main():
         logger.info(f"Создана папка {sessions_folder}")
     
     logger.info("✅ Бот запущен!")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
