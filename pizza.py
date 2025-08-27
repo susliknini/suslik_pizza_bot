@@ -45,9 +45,6 @@ main_keyboard = InlineKeyboardMarkup(inline_keyboard=[
 # Загрузка сессий (имитация)
 def load_sessions() -> List[str]:
     sessions = []
-    if not os.path.exists(sessions_folder):
-        os.makedirs(sessions_folder)
-        logger.info(f"Создана папка {sessions_folder}")
     
     # Имитируем загрузку существующих сессий
     for i in range(1, 11):  # 10 тестовых сессий
@@ -84,6 +81,19 @@ async def cmd_start(message: types.Message):
         reply_markup=main_keyboard
     )
 
+# Обработчик команды /help
+@dp.message(Command("help"))
+async def cmd_help(message: types.Message):
+    help_text = (
+        "🤖 Помощь по боту:\n\n"
+        "🟢 Донос - отправить жалобу на сообщение\n"
+        "👤 Профиль - посмотреть свой профиль\n"
+        "💎 Поддержать проект - помочь развитию бота\n"
+        "🛠 Тех поддержка - связаться с поддержкой\n\n"
+        "Просто нажмите на кнопку в меню ниже!"
+    )
+    await message.answer(help_text, reply_markup=main_keyboard)
+
 # Обработчик кнопки "Донос"
 @dp.callback_query(F.data == "report")
 async def report_handler(callback: types.CallbackQuery):
@@ -91,9 +101,39 @@ async def report_handler(callback: types.CallbackQuery):
     active_reports[callback.from_user.id] = "waiting_link"
     await callback.answer()
 
-# Обработчик ввода ссылки
-@dp.message(F.text)
-async def process_message(message: types.Message):
+# Обработчик кнопки "Профиль"
+@dp.callback_query(F.data == "profile")
+async def profile_handler(callback: types.CallbackQuery):
+    user = callback.from_user
+    profile_text = (
+        f"👤 Ваш профиль:\n"
+        f"🆔 ID: {user.id}\n"
+        f"📛 Username: @{user.username}\n"
+        f"👀 Имя: {user.first_name} {user.last_name or ''}"
+    )
+    await callback.message.answer(profile_text)
+    await callback.answer()
+
+# Обработчик кнопки "Тех поддержка"
+@dp.callback_query(F.data == "support")
+async def support_handler(callback: types.CallbackQuery):
+    await callback.message.answer("📝 Опишите вашу проблему:")
+    active_reports[callback.from_user.id] = "waiting_support"
+    await callback.answer()
+
+# Обработчик кнопки "Поддержать проект"
+@dp.callback_query(F.data == "donate")
+async def donate_handler(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "💎 Поддержать проект можно по ссылке:\n"
+        "https://t.me/send?start=IV2HJyZJ6rrz\n\n"
+        "🙏 Спасибо за вашу поддержку! 💖"
+    )
+    await callback.answer()
+
+# Обработчик текстовых сообщений (только для ожидаемых состояний)
+@dp.message(F.text & ~F.command)
+async def process_text_message(message: types.Message):
     user_id = message.from_user.id
     
     # Проверяем, ожидаем ли мы ссылку от пользователя
@@ -106,6 +146,10 @@ async def process_message(message: types.Message):
     # Проверяем, ожидаем ли мы обращение в поддержку
     elif user_id in active_reports and active_reports[user_id] == "waiting_support":
         await process_support(message)
+    
+    # Если сообщение не обрабатывается, показываем меню
+    else:
+        await message.answer("Выберите действие из меню:", reply_markup=main_keyboard)
 
 # Основная функция обработки ссылки
 async def process_link(message: types.Message):
@@ -136,7 +180,8 @@ async def process_link(message: types.Message):
     
     if total_reports == 0:
         await progress_message.edit_text("❌ Нет доступных сессий!")
-        del active_reports[user_id]
+        if user_id in active_reports:
+            del active_reports[user_id]
         return
     
     # Имитируем отправку жалоб
@@ -261,26 +306,6 @@ async def process_link(message: types.Message):
     if user_id in active_reports:
         del active_reports[user_id]
 
-# Обработчик кнопки "Профиль"
-@dp.callback_query(F.data == "profile")
-async def profile_handler(callback: types.CallbackQuery):
-    user = callback.from_user
-    profile_text = (
-        f"👤 Ваш профиль:\n"
-        f"🆔 ID: {user.id}\n"
-        f"📛 Username: @{user.username}\n"
-        f"👀 Имя: {user.first_name} {user.last_name or ''}"
-    )
-    await callback.message.answer(profile_text)
-    await callback.answer()
-
-# Обработчик кнопки "Тех поддержка"
-@dp.callback_query(F.data == "support")
-async def support_handler(callback: types.CallbackQuery):
-    await callback.message.answer("📝 Опишите вашу проблему:")
-    active_reports[callback.from_user.id] = "waiting_support"
-    await callback.answer()
-
 # Обработчик обращения в поддержку
 async def process_support(message: types.Message):
     support_text = (
@@ -300,16 +325,6 @@ async def process_support(message: types.Message):
     
     if message.from_user.id in active_reports:
         del active_reports[message.from_user.id]
-
-# Обработчик кнопки "Поддержать проект"
-@dp.callback_query(F.data == "donate")
-async def donate_handler(callback: types.CallbackQuery):
-    await callback.message.answer(
-        "💎 Поддержать проект можно по ссылке:\n"
-        "https://t.me/send?start=IV2HJyZJ6rrz\n\n"
-        "🙏 Спасибо за вашу поддержку! 💖"
-    )
-    await callback.answer()
 
 # Запуск бота
 async def main():
