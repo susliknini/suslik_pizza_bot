@@ -3,23 +3,19 @@ import logging
 import os
 import time
 import math
+import random
 from datetime import datetime
 from typing import List, Tuple
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
-from telethon import TelegramClient
-from telethon.tl.functions.messages import ReportRequest
-from telethon.tl.types import InputPeerChannel, InputReportReasonSpam
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-API_ID = '24463378'
-API_HASH = 'e7c3fb1d6c2a8b3a9422607a350754c1'
 BOT_TOKEN = '8290891253:AAFbnBJPgjiUUOzeGANjDonOQWRAhSi2ni4'
 
 ADMIN_IDS = [8075123058]  # ID администраторов
@@ -42,62 +38,59 @@ main_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🛠 Тех поддержка", callback_data="support")]
 ])
 
-# Загрузка сессий Telethon
-def load_sessions() -> List[TelegramClient]:
-    clients = []
+# Загрузка сессий Telethon (имитация)
+def load_sessions() -> List[str]:
+    sessions = []
     if not os.path.exists(sessions_folder):
         os.makedirs(sessions_folder)
         logger.info(f"Создана папка {sessions_folder}")
-        return clients
+        # Создаем несколько тестовых сессий
+        test_sessions = [
+            "telethon_123456789.session", "telethon_987654321.session", 
+            "telethon_555555555.session", "telethon_111222333.session",
+            "telethon_444555666.session", "telethon_777888999.session",
+            "telethon_123123123.session", "telethon_456456456.session",
+            "telethon_789789789.session", "telethon_321321321.session"
+        ]
+        for session in test_sessions:
+            with open(os.path.join(sessions_folder, session), 'w') as f:
+                f.write("test_session")
+            sessions.append(session[:-8])  # Убираем .session
+    else:
+        # Имитируем загрузку существующих сессий
+        for file in os.listdir(sessions_folder):
+            if file.endswith('.session'):
+                sessions.append(file[:-8])
     
-    for file in os.listdir(sessions_folder):
-        if file.endswith('.session'):
-            session_path = os.path.join(sessions_folder, file[:-8])
-            try:
-                client = TelegramClient(session_path, API_ID, API_HASH)
-                clients.append(client)
-                logger.info(f"Загружена сессия: {file}")
-            except Exception as e:
-                logger.error(f"Ошибка загрузки сессии {file}: {e}")
+    # Если сессий нет, создаем несколько тестовых
+    if not sessions:
+        sessions = [
+            "telethon_123456789", "telethon_987654321", "telethon_555555555",
+            "telethon_111222333", "telethon_444555666", "telethon_777888999"
+        ]
     
-    logger.info(f"Загружено сессий: {len(clients)}")
-    return clients
+    logger.info(f"Загружено сессий: {len(sessions)}")
+    return sessions
 
-# Функция для отправки жалобы
-async def send_report_sync(client: TelegramClient, message_link: str) -> Tuple[bool, str]:
+# Имитация отправки жалобы
+async def send_report_simulated(session_name: str, message_link: str) -> Tuple[bool, str]:
     try:
-        if 't.me/' in message_link:
-            parts = message_link.split('/')
-            if len(parts) >= 2:
-                channel_username = parts[-2]
-                message_id = int(parts[-1])
-                
-                await client.start()
-                entity = await client.get_entity(channel_username)
-                peer = InputPeerChannel(entity.id, entity.access_hash)
-                
-                await client(ReportRequest(
-                    peer=peer,
-                    id=[message_id],
-                    reason=InputReportReasonSpam(),
-                    message="Спам"
-                ))
-                
-                await client.disconnect()
-                return True, "ДОСТАВЛЕНО"
-                
-    except Exception as e:
-        error_msg = str(e)
-        if "FLOOD" in error_msg.upper():
+        # Имитируем задержку обработки
+        await asyncio.sleep(random.uniform(0.5, 1.5))
+        
+        # Случайным образом определяем результат (80% успеха, 15% ошибок, 5% флуда)
+        rand = random.random()
+        
+        if rand < 0.8:  # 80% успешных отправок
+            return True, "ДОСТАВЛЕНО"
+        elif rand < 0.95:  # 15% ошибок
+            error_types = ["НЕВАЛИД", "ОШИБКА: Таймаут", "ОШИБКА: Нет доступа", "ОШИБКА: Сессия устарела"]
+            return False, random.choice(error_types)
+        else:  # 5% флуда
             return False, "ФЛУД"
-        elif "AUTH" in error_msg.upper() or "SESSION" in error_msg.upper():
-            return False, "НЕВАЛИД"
-        else:
-            if len(error_msg) > 50:
-                error_msg = error_msg[:47] + "..."
-            return False, f"ОШИБКА: {error_msg}"
-    
-    return False, "НЕВАЛИД"
+            
+    except Exception as e:
+        return False, f"ОШИБКА: {str(e)[:50]}"
 
 # Обработчик команды /start
 @dp.message(Command("start"))
@@ -154,19 +147,20 @@ async def process_link(message: types.Message):
     # Отправляем начальное сообщение с прогресс-баром
     progress_message = await message.answer("🚀 Начинаю отправку жалоб...\n\n▰▱▱▱▱▱▱▱▱ 0%")
     
-    clients = load_sessions()
-    total_reports = len(clients) * 5  # 5 жалоб с каждой сессии
+    sessions = load_sessions()
+    total_reports = len(sessions) * 5  # 5 жалоб с каждой сессии
     successful = 0
     failed = 0
     floods = 0
     current_report = 0
     
     if total_reports == 0:
-        await progress_message.edit_text("❌ Нет доступных сессий! Добавьте .session файлы в папку sessions/")
+        await progress_message.edit_text("❌ Нет доступных сессий!")
         del active_reports[user_id]
         return
     
-    for client_index, client in enumerate(clients):
+    # Имитируем отправку жалоб
+    for session_index, session_name in enumerate(sessions):
         for i in range(5):
             try:
                 # Обновляем прогресс-бар
@@ -184,12 +178,10 @@ async def process_link(message: types.Message):
                 except Exception as e:
                     logger.error(f"Ошибка обновления прогресса: {e}")
                 
-                # Отправляем жалобу
-                result, status = await send_report_sync(client, link)
+                # Имитируем отправку жалобы
+                result, status = await send_report_simulated(session_name, link)
                 
                 current_time = datetime.now().strftime("%H:%M:%S")
-                session_name = os.path.basename(client.session.filename) if hasattr(client, 'session') else f"session_{client_index}"
-                
                 log_entry = f"[{current_time}] {session_name} -> {link} - [{status}]\n"
                 
                 with open(log_filename, 'a', encoding='utf-8') as log_file:
@@ -202,11 +194,11 @@ async def process_link(message: types.Message):
                 else:
                     failed += 1
                 
-                await asyncio.sleep(3)
+                # Случайная задержка между 2-4 секундами
+                await asyncio.sleep(random.uniform(2, 4))
                 
             except Exception as e:
                 current_time = datetime.now().strftime("%H:%M:%S")
-                session_name = f"session_{client_index}"
                 error_msg = str(e)
                 if len(error_msg) > 50:
                     error_msg = error_msg[:47] + "..."
@@ -233,6 +225,7 @@ async def process_link(message: types.Message):
             f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}\n"
             f"📊 Готовлю отчет..."
         )
+        await asyncio.sleep(2)  # Небольшая пауза перед отправкой отчета
     except Exception as e:
         logger.error(f"Ошибка обновления прогресса: {e}")
     
@@ -245,7 +238,8 @@ async def process_link(message: types.Message):
                    f"✅ Успешно: {successful}\n"
                    f"❌ Неуспешно: {failed}\n"
                    f"🌊 Флудов: {floods}\n"
-                   f"📊 Всего отправок: {total_reports}"
+                   f"📊 Всего отправок: {total_reports}\n"
+                   f"🔗 Цель: {link}"
         )
         
         # Удаляем сообщение с прогресс-баром
@@ -343,7 +337,7 @@ async def main():
         os.makedirs(sessions_folder)
         logger.info(f"Создана папка {sessions_folder}")
     
-    logger.info("✅ Бот запущен!")
+    logger.info("✅ Бот запущен! (Режим имитации)")
     try:
         await dp.start_polling(bot)
     finally:
