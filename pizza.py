@@ -34,7 +34,27 @@ order_counter = 1
 sessions_folder = "sessions"
 active_reports = {}
 
-# Клавиатура
+# Списки ников для генерации почт
+NICKS = [
+    "fgsdgdf", "kokainj22", "lodog", "darkmaster", "shadowfax", "neonlight",
+    "cybsdfsadfedfsafrpunk", "quasadfantufsafdm", "phanfsdaftom", "stfsdfasealth", "vorsatesafdx", "blasaffsaze", "frsfaost",
+    "nfsdfightwsdfaolf", "silsdfsadfentkill", "ghosdfasadfsadfstridsfdaer", "blsdfoodfsafsadhousand", "snipfsdfser", "warlord",
+    "demoldsafafsition", "hasadfsvoc", "chfdsafaaos", "madfsfsayhem", "rdfgdfeaper", "viwerwper", "cowertbertra", "ptrwtwyttwrethon",
+    "dragdsfason", "phofsdfenix", "raptdsggor", "hawsgak", "eagsdfasle", "falcosfaasn", "woasf lf", "tigsdfasder",
+    "pantsfdsafher", "leodfsapard", "jasdfsadfsaguar", "lyasdfsanx", "beagdsfadfr", "shasdafsark", "orsdfsaca", "krsfdsaaken"
+]
+
+EMAIL_DOMAINS = ["rambler.ru", "gmail.com", "mail.ru", "yandex.ru", "yahoo.com"]
+
+# Клавиатура выбора метода
+methods_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="🤖 Botnet метод", callback_data="method_botnet")],
+    [InlineKeyboardButton(text="📧 Email метод", callback_data="method_email")],
+    [InlineKeyboardButton(text="🔐 DSA метод", callback_data="method_dsa")],
+    [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
+])
+
+# Основная клавиатура
 main_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🟢 Донос", callback_data="report")],
     [InlineKeyboardButton(text="👤 Профиль", callback_data="profile")],
@@ -45,33 +65,50 @@ main_keyboard = InlineKeyboardMarkup(inline_keyboard=[
 # Загрузка сессий (имитация)
 def load_sessions() -> List[str]:
     sessions = []
-    
-    # Имитируем загрузку существующих сессий
-    for i in range(1, 11):  # 10 тестовых сессий
+    # Имитируем загрузку сессий
+    for i in range(1, random.randint(25, 35)):  # 25-35 сессий
         sessions.append(f"telethon_{random.randint(100000000, 999999999)}")
-    
-    logger.info(f"Загружено сессий: {len(sessions)}")
     return sessions
 
-# Имитация отправки жалобы
-async def send_report_simulated(session_name: str, message_link: str) -> Tuple[bool, str]:
+# Генерация email аккаунтов с никами
+def generate_emails() -> List[str]:
+    emails = []
+    # Создаем 30-40 уникальных email аккаунтов
+    used_nicks = set()
+    
+    while len(emails) < random.randint(30, 40):
+        nick = random.choice(NICKS)
+        if nick not in used_nicks:
+            used_nicks.add(nick)
+            # Добавляем случайные цифры для уникальности
+            numbers = str(random.randint(1, 999))
+            domain = random.choice(EMAIL_DOMAINS)
+            email = f"{nick}{numbers}@{domain}"
+            emails.append(email)
+    
+    return emails
+
+# Имитация отправки жалобы через Botnet
+async def send_report_botnet(session_name: str, message_link: str) -> Tuple[bool, str]:
     try:
-        # Имитируем задержку обработки
-        await asyncio.sleep(random.uniform(0.5, 1.5))
-        
-        # Случайным образом определяем результат
+        await asyncio.sleep(random.uniform(0.1, 0.5))
         rand = random.random()
-        
-        if rand < 0.8:  # 80% успешных отправок
-            return True, "ДОСТАВЛЕНО"
-        elif rand < 0.95:  # 15% ошибок
-            error_types = ["НЕВАЛИД", "ОШИБКА: Таймаут", "ОШИБКА: Нет доступа", "ОШИБКА: Сессия устарела"]
-            return False, random.choice(error_types)
-        else:  # 5% флуда
-            return False, "ФЛУД"
-            
+        if rand < 0.85: return True, "ДОСТАВЛЕНО"
+        elif rand < 0.95: return False, random.choice(["НЕВАЛИД", "ОШИБКА: Таймаут"])
+        else: return False, "ФЛУД"
     except Exception as e:
-        return False, f"ОШИБКА: {str(e)[:50]}"
+        return False, f"ОШИБКА: {str(e)[:30]}"
+
+# Имитация отправки жалобы через Email
+async def send_report_email(email: str, message_link: str) -> Tuple[bool, str]:
+    try:
+        await asyncio.sleep(random.uniform(0.05, 0.3))
+        rand = random.random()
+        if rand < 0.75: return True, "ДОСТАВЛЕНО"
+        elif rand < 0.90: return False, random.choice(["EMAIL BOUNCE", "SPAM FILTER"])
+        else: return False, "QUOTA EXCEEDED"
+    except Exception as e:
+        return False, f"EMAIL ERROR: {str(e)[:30]}"
 
 # Обработчик команды /start
 @dp.message(Command("start"))
@@ -99,6 +136,30 @@ async def cmd_help(message: types.Message):
 async def report_handler(callback: types.CallbackQuery):
     await callback.message.answer("📩 Введите ссылку на сообщение из публичного чата с нарушением:")
     active_reports[callback.from_user.id] = "waiting_link"
+    await callback.answer()
+
+# Обработчик кнопки выбора метода
+@dp.callback_query(F.data.startswith("method_"))
+async def method_handler(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    method = callback.data.split("_")[1]
+    
+    if method == "dsa":
+        await callback.message.answer("в раработке ыы")
+        await callback.answer()
+        return
+    
+    if user_id in active_reports and active_reports[user_id].startswith("waiting_method_"):
+        link = active_reports[user_id].split("_", 2)[2]
+        active_reports[user_id] = f"processing_{method}_{link}"
+        await callback.message.answer(f"🚀 Запускаю {method.upper()} cyjcbyn...")
+        await process_link(callback.message, method, link)
+    await callback.answer()
+
+# Обработчик кнопки "Назад"
+@dp.callback_query(F.data == "back_to_main")
+async def back_handler(callback: types.CallbackQuery):
+    await callback.message.answer("Главное меню:", reply_markup=main_keyboard)
     await callback.answer()
 
 # Обработчик кнопки "Профиль"
@@ -131,173 +192,150 @@ async def donate_handler(callback: types.CallbackQuery):
     )
     await callback.answer()
 
-# Обработчик текстовых сообщений (только для ожидаемых состояний)
+# Обработчик текстовых сообщений
 @dp.message(F.text & ~F.command)
 async def process_text_message(message: types.Message):
     user_id = message.from_user.id
     
-    # Проверяем, ожидаем ли мы ссылку от пользователя
     if user_id in active_reports and active_reports[user_id] == "waiting_link":
         if 't.me/' in message.text:
-            await process_link(message)
+            link = message.text.strip()
+            active_reports[user_id] = f"waiting_method_{link}"
+            await message.answer("🔧 Выберите метод отправки:", reply_markup=methods_keyboard)
         else:
-            await message.answer("❌ Это не похоже на ссылку Telegram. Введите ссылку в формате: https://t.me/username/123")
+            await message.answer("❌ Это не похоже на ссылку.")
     
-    # Проверяем, ожидаем ли мы обращение в поддержку
     elif user_id in active_reports and active_reports[user_id] == "waiting_support":
         await process_support(message)
-    
-    # Если сообщение не обрабатывается, показываем меню
-    else:
-        await message.answer("Выберите действие из меню:", reply_markup=main_keyboard)
 
 # Основная функция обработки ссылки
-async def process_link(message: types.Message):
-    link = message.text.strip()
+async def process_link(message: types.Message, method: str, link: str):
     user_id = message.from_user.id
     global order_counter
     
-    # Создаем лог файл
     log_filename = f"SuslikPizza_log{order_counter}.txt"
     order_counter += 1
     
     with open(log_filename, 'w', encoding='utf-8') as log_file:
-        log_file.write(f"SuslikPizza log | botnet-method\n")
-        log_file.write("-" * 42 + "\n")
+        log_file.write(f"SuslikPizza log | {method.upper()}-method\n")
+        log_file.write("-" * 50 + "\n")
         log_file.write(f"Пользователь: {message.from_user.id} (@{message.from_user.username})\n")
+        log_file.write(f"Метод: {method.upper()}\n")
         log_file.write(f"Ссылка: {link}\n")
-        log_file.write("-" * 42 + "\n")
+        log_file.write(f"Время начала: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        log_file.write("-" * 50 + "\n")
     
-    # Отправляем начальное сообщение с прогресс-баром
-    progress_message = await message.answer("🚀 Начинаю отправку жалоб...\n\n▰▱▱▱▱▱▱▱▱ 0%")
+    progress_message = await message.answer(f"🚀 Запуск {method.upper()} метода...\n\n▰▱▱▱▱▱▱▱▱ 0%")
     
-    sessions = load_sessions()
-    total_reports = len(sessions) * 5  # 5 жалоб с каждой сессии
     successful = 0
     failed = 0
     floods = 0
-    current_report = 0
+    
+    if method == "botnet":
+        items = load_sessions()
+        reports_per_item = 3  # 3 жалобы с каждой сессии
+        send_func = send_report_botnet
+        item_type = "сессия"
+    elif method == "email":
+        items = generate_emails()
+        reports_per_item = 5  # 5 жалоб с каждого email
+        send_func = send_report_email
+        item_type = "email"
+    else:
+        items = []
+        reports_per_item = 0
+    
+    total_reports = len(items) * reports_per_item
+    total_reports = min(total_reports, random.randint(110, 160))  # Ограничиваем 110-160
     
     if total_reports == 0:
-        await progress_message.edit_text("❌ Нет доступных сессий!")
-        if user_id in active_reports:
-            del active_reports[user_id]
+        await progress_message.edit_text("❌ Нет доступных ресурсов!")
         return
     
-    # Имитируем отправку жалоб
-    for session_index, session_name in enumerate(sessions):
-        for i in range(5):
-            try:
-                # Обновляем прогресс-бар
-                current_report += 1
-                progress_percent = min(math.floor((current_report / total_reports) * 100), 100)
+    # Быстрая имитация отправки
+    tasks = []
+    current_report = 0
+    
+    for item in items:
+        for i in range(reports_per_item):
+            if current_report >= total_reports:
+                break
+            tasks.append(send_report_task(send_func, item, link, log_filename, item_type))
+            current_report += 1
+            if current_report % 20 == 0:  # Обновляем прогресс каждые 20 задач
+                progress_percent = min(math.floor(current_report / total_reports * 100), 100)
                 progress_bar = "▰" * math.floor(progress_percent / 10) + "▱" * (10 - math.floor(progress_percent / 10))
                 
-                # Обновляем сообщение с прогрессом
                 try:
                     await progress_message.edit_text(
-                        f"🚀 Отправка жалоб...\n\n"
+                        f"🚀 {method.upper()} метод...\n\n"
                         f"{progress_bar} {progress_percent}%\n"
                         f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}"
                     )
-                except Exception as e:
-                    logger.error(f"Ошибка обновления прогресса: {e}")
-                
-                # Имитируем отправку жалобы
-                result, status = await send_report_simulated(session_name, link)
-                
-                current_time = datetime.now().strftime("%H:%M:%S")
-                log_entry = f"[{current_time}] {session_name} -> {link} - [{status}]\n"
-                
-                with open(log_filename, 'a', encoding='utf-8') as log_file:
-                    log_file.write(log_entry)
-                
+                except:
+                    pass
+    
+    # Запускаем задачи батчами
+    batch_size = 25  # Одновременно обрабатываем 25 жалоб
+    for i in range(0, len(tasks), batch_size):
+        batch = tasks[i:i + batch_size]
+        results = await asyncio.gather(*batch, return_exceptions=True)
+        
+        for result in results:
+            if isinstance(result, tuple):
+                status = result[1]
                 if status == "ДОСТАВЛЕНО":
                     successful += 1
-                elif status == "ФЛУД":
+                elif status in ["ФЛУД", "QUOTA EXCEEDED"]:
                     floods += 1
                 else:
                     failed += 1
-                
-                # Случайная задержка между 2-4 секундами
-                await asyncio.sleep(random.uniform(2, 4))
-                
-            except Exception as e:
-                current_time = datetime.now().strftime("%H:%M:%S")
-                error_msg = str(e)
-                if len(error_msg) > 50:
-                    error_msg = error_msg[:47] + "..."
-                log_entry = f"[{current_time}] {session_name} -> {link} - [ОШИБКА: {error_msg}]\n"
-                
-                with open(log_filename, 'a', encoding='utf-8') as log_file:
-                    log_file.write(log_entry)
-                
-                failed += 1
-                logger.error(f"Ошибка: {e}")
+        
+        # Обновляем прогресс
+        progress_percent = min(math.floor((i + len(batch)) / len(tasks) * 100), 100)
+        progress_bar = "▰" * math.floor(progress_percent / 10) + "▱" * (10 - math.floor(progress_percent / 10))
+        
+        try:
+            await progress_message.edit_text(
+                f"🚀 {method.upper()} метод...\n\n"
+                f"{progress_bar} {progress_percent}%\n"
+                f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}"
+            )
+        except:
+            pass
+        
+        await asyncio.sleep(0.3)  # Короткая пауза между батчами
     
     # Записываем итоги
     with open(log_filename, 'a', encoding='utf-8') as log_file:
-        log_file.write("-" * 42 + "\n")
+        log_file.write("-" * 50 + "\n")
         log_file.write(f"Успешно: {successful}\n")
         log_file.write(f"Неуспешно: {failed}\n")
         log_file.write(f"Флудов: {floods}\n")
+        log_file.write(f"Всего отправок: {successful + failed + floods}\n")
+        log_file.write(f"Использовано {item_type}: {len(items)}\n")
     
-    # Обновляем прогресс-бар на 100%
-    try:
-        await progress_message.edit_text(
-            f"✅ Отправка завершена!\n\n"
-            f"▰▰▰▰▰▰▰▰▰▰ 100%\n"
-            f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}\n"
-            f"📊 Готовлю отчет..."
-        )
-        await asyncio.sleep(2)
-    except Exception as e:
-        logger.error(f"Ошибка обновления прогресса: {e}")
-    
-    # Отправляем лог пользователю
+    # Отправляем результат
     try:
         document = FSInputFile(log_filename)
         await message.answer_document(
             document,
-            caption=f"📊 Отчет готов!\n"
+            caption=f"📊 {method.upper()} метод завершен!\n"
                    f"✅ Успешно: {successful}\n"
                    f"❌ Неуспешно: {failed}\n"
                    f"🌊 Флудов: {floods}\n"
-                   f"📊 Всего отправок: {total_reports}\n"
+                   f"📊 Всего: {successful + failed + floods}\n"
+                   f"📧 Использовано {item_type}: {len(items)}\n"
                    f"🔗 Цель: {link}"
         )
-        
-        # Удаляем сообщение с прогресс-баром
         try:
             await progress_message.delete()
         except:
             pass
-            
     except Exception as e:
-        logger.error(f"Ошибка отправки файла пользователю: {e}")
-        await message.answer(
-            f"📊 Отчет готов!\n"
-            f"✅ Успешно: {successful}\n"
-            f"❌ Неуспешно: {failed}\n"
-            f"🌊 Флудов: {floods}\n"
-            f"⚠️ Файл не отправлен: {e}"
-        )
+        await message.answer(f"📊 Отчет готов! Но файл не отправлен: {e}")
     
-    # Отправляем лог админам
-    for admin_id in ADMIN_IDS:
-        try:
-            document = FSInputFile(log_filename)
-            await bot.send_document(
-                admin_id,
-                document,
-                caption=f"📋 Новый отчет от @{message.from_user.username}\n"
-                       f"👤 ID: {message.from_user.id}\n"
-                       f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}"
-            )
-        except Exception as e:
-            logger.error(f"Ошибка отправки файла админу {admin_id}: {e}")
-    
-    # Удаляем временный файл
+    # Чистка
     try:
         os.remove(log_filename)
     except:
@@ -305,6 +343,18 @@ async def process_link(message: types.Message):
     
     if user_id in active_reports:
         del active_reports[user_id]
+
+async def send_report_task(send_func, item, link, log_filename, item_type):
+    result, status = await send_func(item, link)
+    current_time = datetime.now().strftime("%H:%M:%S")
+    
+    with open(log_filename, 'a', encoding='utf-8') as log_file:
+        if item_type == "email":
+            log_file.write(f"[{current_time}] 📧 {item} -> {link} - [{status}]\n")
+        else:
+            log_file.write(f"[{current_time}] 🤖 {item} -> {link} - [{status}]\n")
+    
+    return result, status
 
 # Обработчик обращения в поддержку
 async def process_support(message: types.Message):
@@ -328,7 +378,6 @@ async def process_support(message: types.Message):
 
 # Запуск бота
 async def main():
-    # Удаляем вебхук перед запуском polling
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         logger.info("Вебхук успешно удален")
@@ -337,7 +386,6 @@ async def main():
     
     if not os.path.exists(sessions_folder):
         os.makedirs(sessions_folder)
-        logger.info(f"Создана папка {sessions_folder}")
     
     logger.info("✅ Бот запущен! (Режим имитации)")
     try:
@@ -348,7 +396,6 @@ async def main():
         await bot.session.close()
 
 if __name__ == "__main__":
-    # Устанавливаем обработчик для корректного завершения
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
