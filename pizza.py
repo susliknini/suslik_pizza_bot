@@ -37,26 +37,13 @@ sessions_count = random.randint(35, 37)
 sessions_update_time = datetime.now()
 emails_count = random.randint(45, 55)
 
-# Списки ников для генерации почт
-NICKS = [
-    "fgsdgdf", "kokainj22", "lodog", "darkmaster", "shadowfax", "neonlight",
-    "cybsdfsadfedfsafrpunk", "quasadfantufsafdm", "phanfsdaftom", "stfsdfasealth", "vorsatesafdx", "blasaffsaze", "frsfaost",
-    "nfsdfightwsdfaolf", "silsdfsadfentkill", "ghosdfasadfsadfstridsfdaer", "blsdfoodfsafsadhousand", "snipfsdfser", "warlord",
-    "demoldsafafsition", "hasadfsvoc", "chfdsafaaos", "madfsfsayhem", "rdfgdfeaper", "viwerwper", "cowertbertra", "ptrwtwyttwrethon",
-    "dragdsfason", "phofsdfenix", "raptdsggor", "hawsgak", "eagsdfasle", "falcosfaasn", "woasf lf", "tigsdfasder",
-    "pantsfdsafher", "leodfsapard", "jasdfsadfsaguar", "lyasdfsanx", "beagdsfadfr", "shasdafsark", "orsdfsaca", "krsfdsaaken"
-]
-
-EMAIL_DOMAINS = ["rambler.ru", "gmail.com", "mail.ru", "yandex.ru", "yahoo.com"]
-
 # Основная клавиатура
 main_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🟢 Донос", callback_data="report")],
     [InlineKeyboardButton(text="📊 Статистика", callback_data="stats")],
     [InlineKeyboardButton(text="👤 Профиль", callback_data="profile")],
-    [
-        InlineKeyboardButton(text="💎 Поддержать проект", callback_data="donate"),
-        InlineKeyboardButton(text="🛠 Тех поддержка", callback_data="support")
+    [InlineKeyboardButton(text="💎 Поддержать проект", callback_data="donate"),
+    [InlineKeyboardButton(text="🛠 Тех поддержка", callback_data="support")
     ]
 ])
 
@@ -87,27 +74,29 @@ def load_sessions() -> List[str]:
         sessions.append(f"telethon_{random.randint(100000000, 999999999)}")
     return sessions
 
-# Генерация email аккаунтов с никами
+# Генерация email аккаунтов в нужном формате
 def generate_emails() -> List[str]:
     update_counts()
     emails = []
-    used_nicks = set()
     
-    while len(emails) < emails_count:
-        nick = random.choice(NICKS)
-        if nick not in used_nicks:
-            used_nicks.add(nick)
-            numbers = str(random.randint(1, 999))
-            domain = random.choice(EMAIL_DOMAINS)
-            email = f"{nick}{numbers}@{domain}"
-            emails.append(email)
+    # Генерируем почты в формате: буквы + цифры
+    for i in range(emails_count):
+        # Случайная длина имени (5-12 символов)
+        name_length = random.randint(5, 12)
+        # Генерируем случайные буквы
+        letters = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=name_length))
+        # Добавляем случайные цифры (3-5 цифр)
+        numbers = ''.join(random.choices('0123456789', k=random.randint(3, 5)))
+        # Формируем email
+        email = f"{letters}{numbers}@gmail.com"
+        emails.append(email)
     
     return emails
 
 # Имитация отправки жалобы через Botnet
 async def send_report_botnet(session_name: str, message_link: str) -> Tuple[bool, str]:
     try:
-        await asyncio.sleep(random.uniform(0.8, 1.2))  # Замедляем отправку
+        await asyncio.sleep(random.uniform(0.8, 1.2))
         rand = random.random()
         if rand < 0.85: return True, "ДОСТАВЛЕНО"
         elif rand < 0.95: return False, random.choice(["НЕВАЛИД", "ОШИБКА: Таймаут"])
@@ -118,7 +107,7 @@ async def send_report_botnet(session_name: str, message_link: str) -> Tuple[bool
 # Имитация отправки жалобы через Email
 async def send_report_email(email: str, message_link: str) -> Tuple[bool, str]:
     try:
-        await asyncio.sleep(random.uniform(0.6, 1.0))  # Замедляем отправку
+        await asyncio.sleep(random.uniform(0.6, 1.0))
         rand = random.random()
         if rand < 0.75: return True, "ДОСТАВЛЕНО"
         elif rand < 0.90: return False, random.choice(["EMAIL BOUNCE", "SPAM FILTER"])
@@ -127,25 +116,28 @@ async def send_report_email(email: str, message_link: str) -> Tuple[bool, str]:
         return False, f"EMAIL ERROR: {str(e)[:30]}"
 
 # Отправка фото при старте
-async def send_start_photo(chat_id):
+async def send_welcome_message(chat_id):
+    welcome_text = "👋 Привет! SuslikPizza лучшая доставка в городе Санкт-Петербург (суслико ландивмф)! 🍕"
+    
     try:
         if os.path.exists("start.jpg"):
             photo = FSInputFile("start.jpg")
-            await bot.send_photo(chat_id, photo, caption="👋 Добро пожаловать в SuslikPizza!")
+            await bot.send_photo(
+                chat_id, 
+                photo, 
+                caption=welcome_text,
+                reply_markup=main_keyboard
+            )
         else:
-            await bot.send_message(chat_id, "👋 Добро пожаловать в SuslikPizza!")
+            await bot.send_message(chat_id, welcome_text, reply_markup=main_keyboard)
     except Exception as e:
         logger.error(f"Ошибка отправки фото: {e}")
-        await bot.send_message(chat_id, "👋 Добро пожаловать в SuslikPizza!")
+        await bot.send_message(chat_id, welcome_text, reply_markup=main_keyboard)
 
 # Обработчик команды /start
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await send_start_photo(message.chat.id)
-    await message.answer(
-        "🍕 Лучшая доставка в городе Санкт-Петербург!\nВыберите действие:",
-        reply_markup=main_keyboard
-    )
+    await send_welcome_message(message.chat.id)
 
 # Обработчик команды /help
 @dp.message(Command("help"))
@@ -210,8 +202,7 @@ async def method_handler(callback: types.CallbackQuery):
 # Обработчик кнопки "Назад"
 @dp.callback_query(F.data == "back_to_main")
 async def back_handler(callback: types.CallbackQuery):
-    await send_start_photo(callback.message.chat.id)
-    await callback.message.answer("Главное меню:", reply_markup=main_keyboard)
+    await send_welcome_message(callback.message.chat.id)
     await callback.answer()
 
 # Обработчик кнопки "Профиль"
@@ -306,56 +297,53 @@ async def process_link(message: types.Message, method: str, link: str):
     
     start_time = datetime.now()
     
-    # Имитация отправки с задержкой 30-60 секунд
-    tasks = []
-    current_report = 0
-    
-    for item in items:
-        for i in range(reports_per_item):
-            if current_report >= total_reports:
+    # Имитация отправки
+    for i, item in enumerate(items):
+        for j in range(reports_per_item):
+            if (i * reports_per_item + j) >= total_reports:
                 break
-            tasks.append(send_report_task(send_func, item, link, log_filename, item_type))
-            current_report += 1
-    
-    # Запускаем задачи с задержкой для общей длительности 30-60 секунд
-    batch_size = max(1, len(tasks) // 30)  # Равномерно распределяем на 30-60 секунд
-    for i in range(0, len(tasks), batch_size):
-        batch = tasks[i:i + batch_size]
-        results = await asyncio.gather(*batch, return_exceptions=True)
-        
-        for result in results:
-            if isinstance(result, tuple):
-                status = result[1]
-                if status == "ДОСТАВЛЕНО":
-                    successful += 1
-                elif status in ["ФЛУД", "QUOTA EXCEEDED"]:
-                    floods += 1
+            
+            # Отправляем жалобу
+            result, status = await send_func(item, link)
+            
+            # Логируем
+            current_time = datetime.now().strftime("%H:%M:%S")
+            with open(log_filename, 'a', encoding='utf-8') as log_file:
+                if method == "email":
+                    log_file.write(f"[{current_time}] 📧 {item} -> {link} - [{status}]\n")
                 else:
-                    failed += 1
+                    log_file.write(f"[{current_time}] 🤖 {item} -> {link} - [{status}]\n")
+            
+            # Считаем статистику
+            if status == "ДОСТАВЛЕНО":
+                successful += 1
+            elif status in ["ФЛУД", "QUOTA EXCEEDED"]:
+                floods += 1
+            else:
+                failed += 1
+            
+            # Обновляем прогресс каждые 10 отчетов
+            current_report = i * reports_per_item + j + 1
+            if current_report % 10 == 0 or current_report >= total_reports:
+                progress_percent = min(math.floor(current_report / total_reports * 100), 100)
+                progress_bar = "▰" * math.floor(progress_percent / 10) + "▱" * (10 - math.floor(progress_percent / 10))
+                elapsed = int((datetime.now() - start_time).total_seconds())
+                
+                try:
+                    await progress_message.edit_text(
+                        f"🚀 {method.upper()} метод...\n\n"
+                        f"{progress_bar} {progress_percent}%\n"
+                        f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}\n"
+                        f"⏰ Прошло: {elapsed}с"
+                    )
+                except:
+                    pass
         
-        # Обновляем прогресс
-        elapsed = (datetime.now() - start_time).total_seconds()
-        progress_percent = min(math.floor((i + len(batch)) / len(tasks) * 100), 100)
-        progress_bar = "▰" * math.floor(progress_percent / 10) + "▱" * (10 - math.floor(progress_percent / 10))
-        
-        try:
-            await progress_message.edit_text(
-                f"🚀 {method.upper()} метод...\n\n"
-                f"{progress_bar} {progress_percent}%\n"
-                f"✅ Успешно: {successful} | ❌ Ошибки: {failed} | 🌊 Флуды: {floods}\n"
-                f"⏰ Прошло: {int(elapsed)}с"
-            )
-        except:
-            pass
-        
-        # Задержка для общей длительности 30-60 секунд
-        if elapsed < 30:
-            await asyncio.sleep(1)
-        elif elapsed < 50:
-            await asyncio.sleep(0.5)
+        # Небольшая пауза между элементами
+        await asyncio.sleep(0.1)
     
     # Записываем итоги
-    total_time = (datetime.now() - start_time).total_seconds()
+    total_time = int((datetime.now() - start_time).total_seconds())
     with open(log_filename, 'a', encoding='utf-8') as log_file:
         log_file.write("-" * 50 + "\n")
         log_file.write(f"Успешно: {successful}\n")
@@ -363,7 +351,7 @@ async def process_link(message: types.Message, method: str, link: str):
         log_file.write(f"Флудов: {floods}\n")
         log_file.write(f"Всего отправок: {successful + failed + floods}\n")
         log_file.write(f"Использовано {item_type}: {len(items)}\n")
-        log_file.write(f"Время выполнения: {int(total_time)}сек\n")
+        log_file.write(f"Время выполнения: {total_time}сек\n")
     
     # Отправляем результат пользователю
     try:
@@ -375,7 +363,7 @@ async def process_link(message: types.Message, method: str, link: str):
                    f"❌ Неуспешно: {failed}\n"
                    f"🌊 Флудов: {floods}\n"
                    f"📊 Всего: {successful + failed + floods}\n"
-                   f"⏰ Время: {int(total_time)}сек\n"
+                   f"⏰ Время: {total_time}сек\n"
                    f"🔗 Цель: {link}"
         )
         
@@ -408,18 +396,6 @@ async def process_link(message: types.Message, method: str, link: str):
     
     if user_id in active_reports:
         del active_reports[user_id]
-
-async def send_report_task(send_func, item, link, log_filename, item_type):
-    result, status = await send_func(item, link)
-    current_time = datetime.now().strftime("%H:%M:%S")
-    
-    with open(log_filename, 'a', encoding='utf-8') as log_file:
-        if item_type == "email":
-            log_file.write(f"[{current_time}] 📧 {item} -> {link} - [{status}]\n")
-        else:
-            log_file.write(f"[{current_time}] 🤖 {item} -> {link} - [{status}]\n")
-    
-    return result, status
 
 # Обработчик обращения в поддержку
 async def process_support(message: types.Message):
