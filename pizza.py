@@ -37,14 +37,12 @@ sessions_count = random.randint(35, 37)
 sessions_update_time = datetime.now()
 emails_count = random.randint(45, 55)
 
-# Основная клавиатура
 main_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🟢 Донос", callback_data="report")],
     [InlineKeyboardButton(text="📊 Статистика", callback_data="stats")],
     [InlineKeyboardButton(text="👤 Профиль", callback_data="profile")],
-    [InlineKeyboardButton(text="💎 Поддержать проект", callback_data="donate"),
-    [InlineKeyboardButton(text="🛠 Тех поддержка", callback_data="support")
-    ]
+    [InlineKeyboardButton(text="💎 Поддержать проект", callback_data="donate")],
+    [InlineKeyboardButton(text="🛠 Тех поддержка", callback_data="support")]
 ])
 
 # Клавиатура выбора метода
@@ -54,6 +52,7 @@ methods_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🔐 DSA метод", callback_data="method_dsa")],
     [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
 ])
+
 
 # Функция для обновления счетчиков каждые 2 часа
 def update_counts():
@@ -441,3 +440,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Бот остановлен")
+
