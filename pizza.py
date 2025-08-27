@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-BOT_TOKEN = '8290891253:AAFbnBJPgjiUUOzeGANjDonOQWRAhSi2ni4'
+BOT_TOKEN = '8386260112:AAEV1fxeOXEuVU2qHaCp78eKj9gFjJBeJZM'
 
 ADMIN_IDS = [8075123058]  # ID администраторов
 SUPPORT_ID = 1637959612  # ID техподдержки
@@ -440,4 +440,5 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Бот остановлен")
+
 
