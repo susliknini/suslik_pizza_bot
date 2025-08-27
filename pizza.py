@@ -328,6 +328,13 @@ async def process_support(message: types.Message):
 
 # Запуск бота
 async def main():
+    # Удаляем вебхук перед запуском polling
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Вебхук успешно удален")
+    except Exception as e:
+        logger.error(f"Ошибка при удалении вебхука: {e}")
+    
     if not os.path.exists(sessions_folder):
         os.makedirs(sessions_folder)
         logger.info(f"Создана папка {sessions_folder}")
