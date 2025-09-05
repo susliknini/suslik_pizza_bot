@@ -24,11 +24,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-BOT_TOKEN = '8007307959:AAE2p3fxaN_nG2EVyHvYPoOtDM1UgTenhik'
+BOT_TOKEN = '8233308713:AAGJ95boC4e-U5dephN6DIhYvhj-d68rP48'
 API_ID = '24044870'
 API_HASH = 'ebeadf05310f4ac501a2bb0b8e49b4ab'
 
-ADMIN_IDS = [7697676638]  # ID администраторов
+ADMIN_IDS = [7246667404]  # ID администраторов
 SUPPORT_ID = 1637959612  # ID техподдержки
 
 # Запрещенные номера для атаки
@@ -609,3 +609,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Бот остановлен")
+
